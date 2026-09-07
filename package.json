@@ -1,0 +1,32 @@
+{
+  "name": "yieldjack",
+  "private": true,
+  "version": "0.1.0",
+  "description": "YieldJack testnet MVP — a prize-savings dApp for Robinhood Chain Testnet.",
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "contracts:build": "pnpm --filter @yieldjack/contracts build && node scripts/sync-abis.mjs",
+    "contracts:test": "pnpm --filter @yieldjack/contracts test",
+    "contracts:fmt": "pnpm --filter @yieldjack/contracts fmt",
+    "contracts:fmt:check": "pnpm --filter @yieldjack/contracts fmt:check",
+    "sync:abis": "node scripts/sync-abis.mjs",
+    "demo:node": "pnpm --filter @yieldjack/contracts anvil",
+    "demo:deploy": "pnpm --filter @yieldjack/contracts deploy:local && node scripts/build-deployment-manifest.mjs 31337",
+    "demo:seed": "node scripts/seed-local.mjs",
+    "dev": "pnpm --filter @yieldjack/web dev",
+    "web:lint": "pnpm --filter @yieldjack/web lint",
+    "web:typecheck": "pnpm --filter @yieldjack/web typecheck",
+    "web:test": "pnpm --filter @yieldjack/web test",
+    "web:build": "pnpm --filter @yieldjack/web build",
+    "web:e2e": "pnpm --filter @yieldjack/web e2e",
+    "keeper:build": "pnpm --filter @yieldjack/keeper build",
+    "keeper:start": "pnpm --filter @yieldjack/keeper start"
+  },
+  "devDependencies": {
+    "viem": "2.56.3"
+  }
+}

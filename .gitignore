@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+apps/web/next-env.d.ts
+
+# Vitest / coverage
+coverage/
+apps/web/playwright-report/
+apps/web/test-results/
+
+# Foundry
+packages/contracts/cache/
+packages/contracts/out/
+packages/contracts/broadcast/*/31337/
+packages/contracts/broadcast/*/46630/
+!packages/contracts/broadcast/*/31337/run-latest.json
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/

@@ -1,0 +1,16 @@
+{
+  "name": "@yieldjack/contracts",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test -vvv",
+    "test:gas": "forge test --gas-report",
+    "fmt": "forge fmt",
+    "fmt:check": "forge fmt --check",
+    "anvil": "anvil --chain-id 31337",
+    "deploy:local": "forge script script/DeployLocal.s.sol:DeployLocal --rpc-url http://127.0.0.1:8545 --broadcast",
+    "deploy:testnet": "forge script script/DeployTestnet.s.sol:DeployTestnet --rpc-url $ROBINHOOD_TESTNET_RPC_URL --broadcast"
+  }
+}
