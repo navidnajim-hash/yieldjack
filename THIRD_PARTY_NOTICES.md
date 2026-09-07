@@ -1,18 +1,20 @@
 # Third-Party Notices
 
-This document records every third-party dependency whose code is vendored into this repository
-or whose design materially influenced YieldJack's own code, per the project's engineering rules
-(see [CLAUDE.md](CLAUDE.md)).
+This document records every third-party dependency this repository depends on (as pinned git
+submodules, not vendored/committed source) or whose design materially influenced YieldJack's
+own code, per the project's engineering rules (see [CLAUDE.md](CLAUDE.md)).
 
-## Code dependencies (vendored / installed)
+## Code dependencies (pinned git submodules)
 
 | Component | License | Version pinned | Where |
 | --- | --- | --- | --- |
 | [OpenZeppelin Contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) | MIT | `v5.7.0` | `packages/contracts/lib/openzeppelin-contracts` |
 | [forge-std](https://github.com/foundry-rs/forge-std) | MIT / Apache-2.0 | `v1.16.2` | `packages/contracts/lib/forge-std` |
 
-Both are used as-is with no source modification, imported via Foundry's standard `lib/`
-mechanism and `remappings.txt`. Their own LICENSE files ship inside `lib/`.
+Both are pinned as git submodules (see `.gitmodules`) at the exact tag noted above — not
+committed as plain files — imported via Foundry's standard `lib/` mechanism and
+`remappings.txt`, used as-is with no source modification. Their own LICENSE files ship inside
+each submodule. Run `git submodule update --init --recursive` after cloning (see README.md).
 
 ## Design inspiration — not code reuse
 

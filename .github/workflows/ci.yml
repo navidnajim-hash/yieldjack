@@ -19,6 +19,11 @@ jobs:
         working-directory: packages/contracts
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Contract dependencies (OpenZeppelin, forge-std) are pinned git submodules, not
+          # vendored files — without this, `packages/contracts/lib/*` checks out empty and the
+          # build fails to resolve imports.
+          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -41,6 +46,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Contract dependencies (OpenZeppelin, forge-std) are pinned git submodules, not
+          # vendored files — without this, `packages/contracts/lib/*` checks out empty and the
+          # build fails to resolve imports.
+          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1

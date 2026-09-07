@@ -61,6 +61,15 @@ scripts/        cross-cutting Node scripts (ABI sync, manifest builder, local se
 
 ## Installation
 
+Contract dependencies (OpenZeppelin, forge-std) are pinned git submodules, not vendored files —
+if you haven't already, fetch them once:
+
+```bash
+git submodule update --init --recursive   # or: git clone --recurse-submodules <this repo>
+```
+
+Then:
+
 ```bash
 pnpm install
 pnpm contracts:build
