@@ -4,11 +4,17 @@ import { DemoPrizeEngineAbi, DemoRandomnessProviderAbi } from "@yieldjack/config
 import { loadKeeperConfig } from "./config.js";
 import { log } from "./log.js";
 
+/** How many rounds before `currentRoundId` to scan each tick for rounds still needing
+ * fulfillment/finalization/rollover — not just the single most recently closed round, so a
+ * backlog of unattended rounds (e.g. nobody finalized round N before round N+1, N+2...also
+ * closed) never becomes permanently stuck. Bounded so each tick does a fixed amount of work. */
+const ACTIONABLE_BACKLOG_SIZE = 20n;
+
 /**
  * YieldJack keeper: reads on-chain draw state and calls the same permissionless functions any
- * user could call from the app (closeRound / fulfillRandomness / finalize) — it never bypasses
- * a contract rule or has any privileged path. Running this is optional; eligible users can
- * always progress a draw themselves from the frontend's testnet controls.
+ * user could call from the app (closeRound / fulfillRandomness / finalize / rollover) — it
+ * never bypasses a contract rule or has any privileged path. Running this is optional; eligible
+ * users can always progress a draw themselves from the frontend's testnet controls.
  */
 async function main() {
   const cfg = loadKeeperConfig();
@@ -58,6 +64,77 @@ async function main() {
     }
   }
 
+  async function getRound(roundId: bigint) {
+    return publicClient.readContract({
+      address: engineAddress!,
+      abi: DemoPrizeEngineAbi,
+      functionName: "getRound",
+      args: [roundId],
+    });
+  }
+
+  /** Progresses a single backlog round: fulfil randomness, finalize, or roll over an expired
+   *  unclaimed prize, as appropriate. Claiming is intentionally not handled here — only the
+   *  winner's own wallet can claim, so that step always happens from the frontend. */
+  async function progressRound(roundId: bigint, round: Awaited<ReturnType<typeof getRound>>, now: bigint) {
+    if (round.state === 1) {
+      const isFulfilled = await publicClient.readContract({
+        address: randomnessAddress!,
+        abi: DemoRandomnessProviderAbi,
+        functionName: "isFulfilled",
+        args: [round.requestId],
+      });
+
+      if (!isFulfilled) {
+        const ready = await publicClient.readContract({
+          address: randomnessAddress!,
+          abi: DemoRandomnessProviderAbi,
+          functionName: "readyToFulfill",
+          args: [round.requestId],
+        });
+        if (ready) {
+          await act(`fulfillRandomness (round ${roundId})`, () =>
+            walletClient!.writeContract({
+              address: randomnessAddress!,
+              abi: DemoRandomnessProviderAbi,
+              functionName: "fulfillRandomness",
+              args: [round.requestId],
+              chain: cfg.chain,
+              account: walletClient!.account,
+            }),
+          );
+        } else {
+          log("info", `Round ${roundId} randomness requested but not yet ready to fulfill.`);
+        }
+      } else {
+        await act(`finalize (round ${roundId})`, () =>
+          walletClient!.writeContract({
+            address: engineAddress!,
+            abi: DemoPrizeEngineAbi,
+            functionName: "finalize",
+            args: [roundId],
+            chain: cfg.chain,
+            account: walletClient!.account,
+          }),
+        );
+      }
+      return;
+    }
+
+    if (round.state === 2 && !round.claimed && now >= round.claimDeadline) {
+      await act(`rollover (round ${roundId})`, () =>
+        walletClient!.writeContract({
+          address: engineAddress!,
+          abi: DemoPrizeEngineAbi,
+          functionName: "rollover",
+          args: [roundId],
+          chain: cfg.chain,
+          account: walletClient!.account,
+        }),
+      );
+    }
+  }
+
   async function tick() {
     try {
       const currentRoundId = (await publicClient.readContract({
@@ -66,13 +143,7 @@ async function main() {
         functionName: "currentRoundId",
       })) as bigint;
 
-      const currentRound = await publicClient.readContract({
-        address: engineAddress!,
-        abi: DemoPrizeEngineAbi,
-        functionName: "getRound",
-        args: [currentRoundId],
-      });
-
+      const currentRound = await getRound(currentRoundId);
       const now = BigInt(Math.floor(Date.now() / 1000));
 
       if (currentRound.state === 0 && now >= currentRound.endTime) {
@@ -87,56 +158,11 @@ async function main() {
         );
       }
 
-      if (currentRoundId > 1n) {
-        const previousRoundId = currentRoundId - 1n;
-        const previousRound = await publicClient.readContract({
-          address: engineAddress!,
-          abi: DemoPrizeEngineAbi,
-          functionName: "getRound",
-          args: [previousRoundId],
-        });
-
-        if (previousRound.state === 1) {
-          const isFulfilled = await publicClient.readContract({
-            address: randomnessAddress!,
-            abi: DemoRandomnessProviderAbi,
-            functionName: "isFulfilled",
-            args: [previousRound.requestId],
-          });
-
-          if (!isFulfilled) {
-            const ready = await publicClient.readContract({
-              address: randomnessAddress!,
-              abi: DemoRandomnessProviderAbi,
-              functionName: "readyToFulfill",
-              args: [previousRound.requestId],
-            });
-            if (ready) {
-              await act(`fulfillRandomness (round ${previousRoundId})`, () =>
-                walletClient!.writeContract({
-                  address: randomnessAddress!,
-                  abi: DemoRandomnessProviderAbi,
-                  functionName: "fulfillRandomness",
-                  args: [previousRound.requestId],
-                  chain: cfg.chain,
-                  account: walletClient!.account,
-                }),
-              );
-            } else {
-              log("info", `Round ${previousRoundId} randomness requested but not yet ready to fulfill.`);
-            }
-          } else {
-            await act(`finalize (round ${previousRoundId})`, () =>
-              walletClient!.writeContract({
-                address: engineAddress!,
-                abi: DemoPrizeEngineAbi,
-                functionName: "finalize",
-                args: [previousRoundId],
-                chain: cfg.chain,
-                account: walletClient!.account,
-              }),
-            );
-          }
+      const oldestScanned = currentRoundId > ACTIONABLE_BACKLOG_SIZE ? currentRoundId - ACTIONABLE_BACKLOG_SIZE : 1n;
+      for (let roundId = oldestScanned; roundId < currentRoundId; roundId++) {
+        const round = await getRound(roundId);
+        if (round.state === 1 || (round.state === 2 && !round.claimed)) {
+          await progressRound(roundId, round, now);
         }
       }
     } catch (err) {

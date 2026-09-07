@@ -6,7 +6,8 @@ import { useReadContract } from "wagmi";
 import { USDG_DECIMALS } from "@yieldjack/config";
 import { useContract } from "@/hooks/useContract";
 import { useTxState } from "@/hooks/useTxState";
-import { useCurrentRound, useRound } from "@/hooks/useYieldJackData";
+import { useActionableRounds } from "@/hooks/useDrawHistory";
+import { useCurrentRound } from "@/hooks/useYieldJackData";
 import { formatUsdg } from "@/lib/format";
 import { TxStatus } from "@/components/shared/TxStatus";
 
@@ -100,29 +101,25 @@ function useNow(): number {
   return now;
 }
 
-export function TestnetControls() {
+/** Fulfil/finalize/rollover controls for a single round from the actionable backlog — a
+ *  round-1000 fully open round the frontend has never lost track of any of the demo, not just
+ *  the single most recently closed one. */
+function RoundActionRow({ roundId, round }: { roundId: bigint; round: { state: number; requestId: bigint; claimDeadline: bigint; claimed: boolean; prizeAmount: bigint } }) {
   const engine = useContract("DemoPrizeEngine");
   const randomness = useContract("DemoRandomnessProvider");
-  const { roundId, round: currentRound, refetch: refetchCurrent } = useCurrentRound();
   const now = useNow();
 
-  const previousRoundId = roundId !== undefined && roundId > 1n ? roundId - 1n : undefined;
-  const { round: previousRound } = useRound(previousRoundId);
-
-  const closeTx = useTxState();
   const fulfillTx = useTxState();
   const finalizeTx = useTxState();
   const rolloverTx = useTxState();
 
-  const canClose = !!currentRound && currentRound.state === 0 && now >= Number(currentRound.endTime);
-
-  const awaitingRandomness = previousRound?.state === 1;
+  const awaitingRandomness = round.state === 1;
 
   const readyToFulfill = useReadContract({
     address: randomness?.address,
     abi: randomness?.abi,
     functionName: "readyToFulfill",
-    args: previousRound ? [previousRound.requestId] : undefined,
+    args: [round.requestId],
     query: { enabled: !!randomness && awaitingRandomness, refetchInterval: 4000 },
   });
 
@@ -130,49 +127,66 @@ export function TestnetControls() {
     address: randomness?.address,
     abi: randomness?.abi,
     functionName: "isFulfilled",
-    args: previousRound ? [previousRound.requestId] : undefined,
+    args: [round.requestId],
     query: { enabled: !!randomness && awaitingRandomness, refetchInterval: 4000 },
   });
 
   const canFulfill = awaitingRandomness && readyToFulfill.data === true && isFulfilled.data !== true;
   const canFinalize = awaitingRandomness && isFulfilled.data === true;
-  const canRollover =
-    previousRound?.state === 2 && !previousRound.claimed && now >= Number(previousRound.claimDeadline);
-
-  async function handleClose() {
-    if (!engine) return;
-    await closeTx.send({ address: engine.address, abi: engine.abi, functionName: "closeRound" });
-    await refetchCurrent();
-  }
+  const canRollover = round.state === 2 && !round.claimed && now >= Number(round.claimDeadline);
 
   async function handleFulfill() {
-    if (!randomness || !previousRound) return;
+    if (!randomness) return;
     await fulfillTx.send({
       address: randomness.address,
       abi: randomness.abi,
       functionName: "fulfillRandomness",
-      args: [previousRound.requestId],
+      args: [round.requestId],
     });
   }
 
   async function handleFinalize() {
-    if (!engine || previousRoundId === undefined) return;
-    await finalizeTx.send({
-      address: engine.address,
-      abi: engine.abi,
-      functionName: "finalize",
-      args: [previousRoundId],
-    });
+    if (!engine) return;
+    await finalizeTx.send({ address: engine.address, abi: engine.abi, functionName: "finalize", args: [roundId] });
   }
 
   async function handleRollover() {
-    if (!engine || previousRoundId === undefined) return;
-    await rolloverTx.send({
-      address: engine.address,
-      abi: engine.abi,
-      functionName: "rollover",
-      args: [previousRoundId],
-    });
+    if (!engine) return;
+    await rolloverTx.send({ address: engine.address, abi: engine.abi, functionName: "rollover", args: [roundId] });
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-surface/60 p-3">
+      <p className="mb-2 text-xs font-medium text-foreground">
+        Round #{roundId.toString()} · {formatUsdg(round.prizeAmount)} mUSDG
+      </p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <ActionButton label="Fulfil demo randomness" onClick={handleFulfill} disabled={!canFulfill} tx={fulfillTx} />
+        <ActionButton label="Finalize winner" onClick={handleFinalize} disabled={!canFinalize} tx={finalizeTx} />
+        <ActionButton
+          label="Roll over unclaimed prize"
+          onClick={handleRollover}
+          disabled={!canRollover}
+          tx={rolloverTx}
+          tone="gold"
+        />
+      </div>
+    </div>
+  );
+}
+
+export function TestnetControls() {
+  const engine = useContract("DemoPrizeEngine");
+  const { round: currentRound } = useCurrentRound();
+  const { actionable, isLoading } = useActionableRounds();
+  const now = useNow();
+
+  const closeTx = useTxState();
+  const canClose = !!currentRound && currentRound.state === 0 && now >= Number(currentRound.endTime);
+
+  async function handleClose() {
+    if (!engine) return;
+    await closeTx.send({ address: engine.address, abi: engine.abi, functionName: "closeRound" });
   }
 
   return (
@@ -182,37 +196,25 @@ export function TestnetControls() {
         <p className="text-xs text-muted">
           These permissionless functions exist so anyone can progress a demo draw without
           waiting. Every eligible user can call them from here — there is no admin-only path.
+          Every round still needing attention is listed below, not just the most recent one.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <SimulateYieldControl />
         <ActionButton label="Close expired round" onClick={handleClose} disabled={!canClose} tx={closeTx} />
-        <ActionButton
-          label="Fulfil demo randomness"
-          onClick={handleFulfill}
-          disabled={!canFulfill}
-          tx={fulfillTx}
-        />
-        <ActionButton
-          label="Finalize winner"
-          onClick={handleFinalize}
-          disabled={!canFinalize}
-          tx={finalizeTx}
-        />
-        <ActionButton
-          label="Roll over unclaimed prize"
-          onClick={handleRollover}
-          disabled={!canRollover}
-          tx={rolloverTx}
-          tone="gold"
-        />
       </div>
 
-      {previousRound && (
-        <p className="text-xs text-muted">
-          Most recently closed round prize: {formatUsdg(previousRound.prizeAmount)} mUSDG
-        </p>
+      {!isLoading && actionable.length === 0 && (
+        <p className="text-xs text-muted">No rounds are currently waiting on randomness, finalization, or rollover.</p>
+      )}
+
+      {actionable.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {actionable.map(({ roundId, round }) => (
+            <RoundActionRow key={roundId.toString()} roundId={roundId} round={round} />
+          ))}
+        </div>
       )}
     </div>
   );

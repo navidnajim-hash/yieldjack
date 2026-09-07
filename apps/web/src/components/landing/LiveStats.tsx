@@ -1,13 +1,13 @@
 "use client";
 
-import { useCurrentRound, useEstimatedCurrentPrize, useVaultSummary } from "@/hooks/useYieldJackData";
+import { useActiveParticipantCount, useEstimatedCurrentPrize, useVaultSummary } from "@/hooks/useYieldJackData";
 import { formatUsdg } from "@/lib/format";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { EmptyState } from "@/components/shared/EmptyState";
 
 export function LiveStats() {
   const { totalPrincipal, contract: vault, isLoading: vaultLoading } = useVaultSummary();
-  const { round, isLoading: roundLoading } = useCurrentRound();
+  const { count: participantCount, isLoading: participantLoading } = useActiveParticipantCount();
   const { amount: currentPrize, isLoading: prizeLoading } = useEstimatedCurrentPrize();
 
   if (!vault) {
@@ -34,10 +34,11 @@ export function LiveStats() {
         accent="gold"
       />
       <StatCard
-        label="Eligible participants this round"
-        value={round ? round.participantCount.toString() : "—"}
-        isLoading={roundLoading}
+        label="Active depositors right now"
+        value={participantCount !== undefined ? participantCount.toString() : "—"}
+        isLoading={participantLoading}
         accent="primary"
+        hint="Read from YieldJackVault directly — accurate for the still-open round, not just after it closes"
       />
     </div>
   );

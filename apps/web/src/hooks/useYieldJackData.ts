@@ -108,6 +108,23 @@ export function useVaultSummary(account?: `0x${string}`) {
   };
 }
 
+/**
+ * The vault's live active-participant count. Deliberately separate from
+ * `RoundSummary.participantCount`, which is only populated when a round *closes* (it stays 0
+ * for the still-open current round) — this reads `YieldJackVault.activeParticipantCount()`
+ * directly, which is accurate at any time, including for the currently open round.
+ */
+export function useActiveParticipantCount() {
+  const vault = useContract("YieldJackVault");
+  const count = useReadContract({
+    address: vault?.address,
+    abi: vault?.abi,
+    functionName: "activeParticipantCount",
+    query: { enabled: !!vault, refetchInterval: REFETCH_INTERVAL_MS },
+  });
+  return { count: count.data as bigint | undefined, isLoading: count.isLoading };
+}
+
 export function useCurrentRound() {
   const engine = useContract("DemoPrizeEngine");
 

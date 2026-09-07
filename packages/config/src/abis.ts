@@ -677,6 +677,37 @@ export const MockJACKAbi = [
   },
   {
     "type": "function",
+    "name": "burn",
+    "inputs": [
+      {
+        "name": "value",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "burnFrom",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "decimals",
     "inputs": [],
     "outputs": [
@@ -2688,18 +2719,7 @@ export const YieldJackVaultAbi = [
   {
     "type": "function",
     "name": "snapshotAndReset",
-    "inputs": [
-      {
-        "name": "asOf",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "newWindowStart",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
+    "inputs": [],
     "outputs": [
       {
         "name": "participants",
@@ -2762,7 +2782,13 @@ export const YieldJackVaultAbi = [
         "internalType": "uint256"
       }
     ],
-    "outputs": [],
+    "outputs": [
+      {
+        "name": "paid",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -2910,13 +2936,19 @@ export const YieldJackVaultAbi = [
         "internalType": "address"
       },
       {
-        "name": "assets",
+        "name": "requested",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
       },
       {
-        "name": "newPrincipal",
+        "name": "paid",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "remainingPrincipal",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -3102,6 +3134,58 @@ export const DemoPrizeEngineAbi = [
   },
   {
     "type": "function",
+    "name": "MAX_CLAIM_EXPIRY",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_ROUND_DURATION",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MIN_CLAIM_EXPIRY",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MIN_ROUND_DURATION",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "addSponsorFunds",
     "inputs": [
       {
@@ -3262,6 +3346,11 @@ export const DemoPrizeEngineAbi = [
           },
           {
             "name": "claimDeadline",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "claimExpirySeconds",
             "type": "uint64",
             "internalType": "uint64"
           },
@@ -3801,6 +3890,27 @@ export const DemoPrizeEngineAbi = [
   },
   {
     "type": "error",
+    "name": "ClaimExpiryOutOfBounds",
+    "inputs": [
+      {
+        "name": "value",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "min",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "max",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "ClaimWindowExpired",
     "inputs": [
       {
@@ -3883,6 +3993,27 @@ export const DemoPrizeEngineAbi = [
   },
   {
     "type": "error",
+    "name": "RoundDurationOutOfBounds",
+    "inputs": [
+      {
+        "name": "value",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "min",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "max",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "RoundNotAwaitingRandomness",
     "inputs": [
       {
@@ -3920,6 +4051,22 @@ export const DemoPrizeEngineAbi = [
     "inputs": [
       {
         "name": "roundId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "SafeCastOverflowedUintDowncast",
+    "inputs": [
+      {
+        "name": "bits",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "value",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -3970,12 +4117,7 @@ export const SponsorRegistryAbi = [
       {
         "name": "jack_",
         "type": "address",
-        "internalType": "contract IERC20"
-      },
-      {
-        "name": "burnAddress_",
-        "type": "address",
-        "internalType": "address"
+        "internalType": "contract IBurnableERC20"
       },
       {
         "name": "minJackBurn_",
@@ -4005,19 +4147,6 @@ export const SponsorRegistryAbi = [
   },
   {
     "type": "function",
-    "name": "burnAddress",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "currentTargetRound",
     "inputs": [],
     "outputs": [
@@ -4037,7 +4166,7 @@ export const SponsorRegistryAbi = [
       {
         "name": "",
         "type": "address",
-        "internalType": "contract IERC20"
+        "internalType": "contract IBurnableERC20"
       }
     ],
     "stateMutability": "view"

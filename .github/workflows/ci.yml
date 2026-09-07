@@ -34,7 +34,7 @@ jobs:
         run: forge fmt --check
 
       - name: Build
-        run: forge build --sizes
+        run: forge build --sizes --locked
 
       - name: Test (unit, fuzz, invariant)
         run: forge test -vvv
