@@ -149,6 +149,26 @@ export function useRound(roundId: bigint | undefined) {
   return { round: round.data as RoundSummary | undefined, isLoading: round.isLoading, refetch: round.refetch };
 }
 
+/**
+ * The prize amount to *display* for the currently open round: its already-escrowed
+ * `prizeAmount` (e.g. from sponsor funds already added) plus the vault's realized-but-not-yet-
+ * pulled yield. `closeRound` doesn't escrow yield until the round actually closes, so without
+ * this the UI would show 0 right up until close even after simulated yield makes it visibly
+ * available — this combines two real on-chain reads into the number a user actually expects to
+ * see grow. Closed rounds in draw history use the final escrowed `prizeAmount` directly instead.
+ */
+export function useEstimatedCurrentPrize() {
+  const { round, isLoading: roundLoading } = useCurrentRound();
+  const { availableYield, isLoading: yieldLoading } = useVaultSummary();
+
+  const amount =
+    round?.prizeAmount !== undefined && availableYield !== undefined
+      ? round.prizeAmount + availableYield
+      : undefined;
+
+  return { amount, isLoading: roundLoading || yieldLoading };
+}
+
 export function useEstimatedChance(account?: `0x${string}`) {
   const engine = useContract("DemoPrizeEngine");
   const { address: connected } = useAccount();

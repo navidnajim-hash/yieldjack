@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
-import { useCurrentRound, useEstimatedChance, useTokenBalance, useVaultSummary } from "@/hooks/useYieldJackData";
+import {
+  useCurrentRound,
+  useEstimatedChance,
+  useEstimatedCurrentPrize,
+  useTokenBalance,
+  useVaultSummary,
+} from "@/hooks/useYieldJackData";
 import { formatBps, formatDuration, formatUsdg } from "@/lib/format";
 import { StatCard } from "./StatCard";
 
@@ -24,6 +30,7 @@ export function BalanceCards() {
   const { principal, isLoading: vaultLoading } = useVaultSummary();
   const { bps: chanceBps, isLoading: chanceLoading } = useEstimatedChance();
   const { round, isLoading: roundLoading } = useCurrentRound();
+  const { amount: currentPrize, isLoading: prizeLoading } = useEstimatedCurrentPrize();
   const countdown = useCountdownToTimestamp(round?.endTime);
 
   return (
@@ -46,10 +53,11 @@ export function BalanceCards() {
       />
       <StatCard
         label="Current prize"
-        value={`${formatUsdg(round?.prizeAmount)}`}
-        isLoading={roundLoading}
+        value={`${formatUsdg(currentPrize)}`}
+        isLoading={prizeLoading}
         accent="gold"
         className="animate-yj-glow"
+        hint="Escrowed prize + realized yield not yet pulled in"
       />
       <StatCard label="Draw countdown" value={countdown} isLoading={roundLoading} accent="primary" />
     </div>

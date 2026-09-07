@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {DeployBase} from "./DeployBase.s.sol";
+import { DeployBase } from "./DeployBase.s.sol";
 
 /// @notice Deploys the full YieldJack testnet-MVP contract suite to a local Anvil node.
 ///         Uses Anvil's well-known default account #0 (public, standard for local dev — never
 ///         a real secret) unless DEPLOYER_PRIVATE_KEY is set in the environment.
 ///         Run via `pnpm demo:deploy` (after `pnpm demo:node` in another terminal).
 contract DeployLocal is DeployBase {
-    uint256 internal constant ANVIL_DEFAULT_KEY =
-        0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+    uint256 internal constant ANVIL_DEFAULT_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
 
     function run() external {
         require(block.chainid == 31337, "DeployLocal: must run against chain id 31337 (anvil)");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCurrentRound, useVaultSummary } from "@/hooks/useYieldJackData";
+import { useCurrentRound, useEstimatedCurrentPrize, useVaultSummary } from "@/hooks/useYieldJackData";
 import { formatUsdg } from "@/lib/format";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 export function LiveStats() {
   const { totalPrincipal, contract: vault, isLoading: vaultLoading } = useVaultSummary();
   const { round, isLoading: roundLoading } = useCurrentRound();
+  const { amount: currentPrize, isLoading: prizeLoading } = useEstimatedCurrentPrize();
 
   if (!vault) {
     return (
@@ -28,8 +29,8 @@ export function LiveStats() {
       />
       <StatCard
         label="Current prize"
-        value={`${formatUsdg(round?.prizeAmount)} mUSDG`}
-        isLoading={roundLoading}
+        value={`${formatUsdg(currentPrize)} mUSDG`}
+        isLoading={prizeLoading}
         accent="gold"
       />
       <StatCard

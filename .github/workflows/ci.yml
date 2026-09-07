@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# No secrets are required for this workflow — everything runs against local mocks or a local
+# Foundry EVM. It never touches Robinhood Chain Testnet or any real RPC endpoint.
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Contracts (fmt, build, test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/contracts
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Check Solidity formatting
+        run: forge fmt --check
+
+      - name: Build
+        run: forge build --sizes
+
+      - name: Test (unit, fuzz, invariant)
+        run: forge test -vvv
+        env:
+          FOUNDRY_PROFILE: ci
+
+  web:
+    name: Web (lint, typecheck, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Build contracts (needed for generated ABIs)
+        working-directory: packages/contracts
+        run: forge build
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Sync ABIs from contract build output
+        run: node scripts/sync-abis.mjs
+
+      - name: Lint
+        run: pnpm --filter @yieldjack/web lint
+
+      - name: Typecheck
+        run: pnpm --filter @yieldjack/config typecheck && pnpm --filter @yieldjack/web typecheck && pnpm --filter @yieldjack/keeper typecheck
+
+      - name: Unit tests
+        run: pnpm --filter @yieldjack/web test
+
+      - name: Production static build
+        run: pnpm --filter @yieldjack/web build

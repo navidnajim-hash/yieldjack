@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Script, console2} from "forge-std/Script.sol";
+import { Script, console2 } from "forge-std/Script.sol";
 
-import {MockUSDG} from "../src/tokens/MockUSDG.sol";
-import {MockJACK} from "../src/tokens/MockJACK.sol";
-import {MockYieldSource} from "../src/yield/MockYieldSource.sol";
-import {DemoRandomnessProvider} from "../src/randomness/DemoRandomnessProvider.sol";
-import {YieldJackVault} from "../src/vault/YieldJackVault.sol";
-import {DemoPrizeEngine} from "../src/prize/DemoPrizeEngine.sol";
-import {SponsorRegistry} from "../src/prize/SponsorRegistry.sol";
-import {IYieldSource} from "../src/interfaces/IYieldSource.sol";
-import {IRandomnessProvider} from "../src/interfaces/IRandomnessProvider.sol";
+import { MockUSDG } from "../src/tokens/MockUSDG.sol";
+import { MockJACK } from "../src/tokens/MockJACK.sol";
+import { MockYieldSource } from "../src/yield/MockYieldSource.sol";
+import { DemoRandomnessProvider } from "../src/randomness/DemoRandomnessProvider.sol";
+import { YieldJackVault } from "../src/vault/YieldJackVault.sol";
+import { DemoPrizeEngine } from "../src/prize/DemoPrizeEngine.sol";
+import { SponsorRegistry } from "../src/prize/SponsorRegistry.sol";
+import { IYieldSource } from "../src/interfaces/IYieldSource.sol";
+import { IRandomnessProvider } from "../src/interfaces/IRandomnessProvider.sol";
 
 /// @title DeployBase
 /// @notice Shared deployment + wiring logic for both the local Anvil and Robinhood Chain
@@ -41,8 +41,9 @@ abstract contract DeployBase is Script {
 
         d.randomness = new DemoRandomnessProvider(deployer);
         d.vault = new YieldJackVault(IYieldSource(address(d.yieldSource)), depositCap, deployer);
-        d.engine =
-            new DemoPrizeEngine(d.vault, IRandomnessProvider(address(d.randomness)), deployer, roundDuration, claimExpiry);
+        d.engine = new DemoPrizeEngine(
+            d.vault, IRandomnessProvider(address(d.randomness)), deployer, roundDuration, claimExpiry
+        );
         d.sponsorRegistry = new SponsorRegistry(d.engine, d.usdg, d.jack, BURN_ADDRESS, 100 ether, deployer);
 
         d.vault.setPrizeEngine(address(d.engine));
