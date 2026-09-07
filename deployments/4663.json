@@ -1,0 +1,35 @@
+{
+  "chainId": 4663,
+  "name": "robinhood-chain-mainnet-demo",
+  "deployedAt": "2026-09-07T14:12:11.684Z",
+  "contracts": {
+    "MockUSDG": {
+      "address": "0x0141023b7efa2d46c0595ab5d86b27f9ba6ed58b",
+      "blockNumber": 56895551
+    },
+    "MockJACK": {
+      "address": "0x7f112b5aa94766c292c975bd622fc9cf930242ff",
+      "blockNumber": 56895577
+    },
+    "MockYieldSource": {
+      "address": "0x83d74d6d73b93093eb77b85ea5854727ef5ace9b",
+      "blockNumber": 56895602
+    },
+    "DemoRandomnessProvider": {
+      "address": "0xaeb1d00f7f04932769e6efcc25286251b95dd347",
+      "blockNumber": 56895654
+    },
+    "YieldJackVault": {
+      "address": "0x33a4ee4a25a552bd9fb84e2b01753c64cd71ebe7",
+      "blockNumber": 56895679
+    },
+    "DemoPrizeEngine": {
+      "address": "0x9a99d2e6784d98a2c9c4aef610f56e8ce2300b38",
+      "blockNumber": 56895704
+    },
+    "SponsorRegistry": {
+      "address": "0x0a5a16cf318efda288553567ab9a3c146008e9b3",
+      "blockNumber": 56895730
+    }
+  }
+}

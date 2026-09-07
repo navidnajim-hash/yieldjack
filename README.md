@@ -45,7 +45,8 @@ apps/
 packages/
   contracts/    Foundry project — all Solidity source, tests, deploy scripts
   config/       shared chain definitions, deployment-manifest types, generated ABIs
-deployments/    committed deployment manifests (31337.json = local Anvil, 46630.json = testnet)
+deployments/    committed deployment manifests (31337.json = local Anvil, 46630.json = testnet,
+                 4663.json = Robinhood Chain mainnet mock-only demo)
 docs/           architecture, threat model, accounting invariants, production roadmap
 scripts/        cross-cutting Node scripts (ABI sync, manifest builder, local seed data)
 .github/workflows/  CI (contract tests + frontend build, no secrets required)
@@ -112,8 +113,33 @@ node scripts/build-deployment-manifest.mjs 46630
 This repository never asks for or transmits a private key on your behalf — export it in your own
 shell, and it is read from the environment *inside* the Foundry script (`vm.envUint`), never
 passed as a `--private-key` command-line argument, so it never ends up in shell history or a
-process listing. There is deliberately no equivalent script for mainnet (chain id 4663); see
-[CLAUDE.md](CLAUDE.md).
+process listing.
+
+### Mainnet demo deployment (Robinhood Chain mainnet, chain id 4663)
+
+This is **not** a production deployment. `deploy:mainnet-demo` deploys the exact same worthless
+mock suite as testnet — MockUSDG, MockJACK, MockYieldSource, DemoRandomnessProvider — to
+Robinhood Chain mainnet, purely so the app can be demoed there. See
+[CLAUDE.md](CLAUDE.md) for the narrow carve-out that permits this one script, and
+[docs/PRODUCTION_ROADMAP.md](docs/PRODUCTION_ROADMAP.md) for everything a real deployment would
+still need.
+
+```bash
+export DEPLOYER_PRIVATE_KEY=0x...      # your own funded mainnet key — never paste it into chat
+export ROBINHOOD_MAINNET_RPC_URL=...   # no default — you must set this yourself
+export MAINNET_DEMO_ACK=I_UNDERSTAND_THIS_IS_MOCK_ONLY
+
+# Dry run (no --broadcast): simulates the deploy and prints what would happen, sends nothing.
+pnpm --filter @yieldjack/contracts deploy:mainnet-demo
+
+# Only once you've reviewed the dry run: actually broadcast, by passing --broadcast yourself.
+pnpm --filter @yieldjack/contracts deploy:mainnet-demo -- --broadcast
+
+node scripts/build-deployment-manifest.mjs 4663
+```
+
+Unlike `deploy:testnet`, `deploy:mainnet-demo` never bakes `--broadcast` into the package script
+itself — a human has to add it explicitly, every time, on top of setting `MAINNET_DEMO_ACK`.
 
 ### Contract verification (separate, optional step)
 
@@ -164,6 +190,8 @@ pnpm start
 | `apps/web/.env.example` | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Optional; falls back to injected-wallet-only connectors if unset |
 | `apps/keeper/.env.example` | `KEEPER_NETWORK`, `ROBINHOOD_TESTNET_RPC_URL`, `KEEPER_PRIVATE_KEY`, `DRY_RUN`, `POLL_INTERVAL_MS` | See file for details |
 | (shell, not committed) | `DEPLOYER_PRIVATE_KEY` | Read by the Foundry deploy scripts; never hardcoded |
+| (shell, not committed) | `ROBINHOOD_MAINNET_RPC_URL` | Robinhood Chain mainnet RPC; only used by `deploy:mainnet-demo` |
+| (shell, not committed) | `MAINNET_DEMO_ACK` | Must equal `I_UNDERSTAND_THIS_IS_MOCK_ONLY`; required by `DeployMainnetDemo.s.sol` |
 
 ## Local commands reference
 
