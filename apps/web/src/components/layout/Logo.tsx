@@ -1,9 +1,9 @@
 /**
- * Original YieldJack mark: a rounded vault door (savings/custody) with a spark badge
- * (yield/energy) sitting on its corner like a jackpot burst. Deliberately geometric and
- * simple rather than photorealistic, and unrelated to any PoolTogether or Robinhood mark.
+ * YieldJack mark: a rounded vault door (savings/custody) with a spark badge (yield) on its
+ * corner. Deliberately geometric and simple, drawn fresh for the production brand's electric-lime
+ * accent — unrelated to any PoolTogether or Robinhood mark.
  */
-export function LogoSymbol({ className, size = 32 }: { className?: string; size?: number }) {
+export function LogoSymbol({ className, size = 30 }: { className?: string; size?: number }) {
   return (
     <svg
       width={size}
@@ -14,15 +14,12 @@ export function LogoSymbol({ className, size = 32 }: { className?: string; size?
       className={className}
       aria-hidden="true"
     >
-      <rect x="3" y="3" width="34" height="34" rx="10" fill="#10b981" fillOpacity="0.12" />
-      <rect x="3" y="3" width="34" height="34" rx="10" stroke="#10b981" strokeWidth="2" />
-      <circle cx="20" cy="20" r="9" stroke="#10b981" strokeWidth="2" />
-      <circle cx="20" cy="20" r="2.25" fill="#10b981" />
-      <path d="M20 13.5V16.5" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M30 6L31.6 10.4L36 12L31.6 13.6L30 18L28.4 13.6L24 12L28.4 10.4L30 6Z"
-        fill="#e8b93f"
-      />
+      <rect x="3" y="3" width="34" height="34" rx="10" fill="#ddfe4c" fillOpacity="0.14" />
+      <rect x="3" y="3" width="34" height="34" rx="10" stroke="#ddfe4c" strokeWidth="2" />
+      <circle cx="20" cy="20" r="9" stroke="#ddfe4c" strokeWidth="2" />
+      <circle cx="20" cy="20" r="2.25" fill="#ddfe4c" />
+      <path d="M20 13.5V16.5" stroke="#ddfe4c" strokeWidth="2" strokeLinecap="round" />
+      <path d="M29 5.5L30.5 9.5L34.5 11L30.5 12.5L29 16.5L27.5 12.5L23.5 11L27.5 9.5L29 5.5Z" fill="#f3f5ec" />
     </svg>
   );
 }
@@ -31,7 +28,7 @@ export function Wordmark({ className }: { className?: string }) {
   return (
     <span className={className}>
       <span className="font-semibold tracking-tight">Yield</span>
-      <span className="font-semibold tracking-tight text-gold">Jack</span>
+      <span className="font-semibold tracking-tight text-accent">Jack</span>
     </span>
   );
 }

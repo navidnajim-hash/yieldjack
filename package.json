@@ -2,7 +2,7 @@
   "name": "yieldjack",
   "private": true,
   "version": "0.1.0",
-  "description": "YieldJack testnet MVP — a prize-savings dApp for Robinhood Chain Testnet.",
+  "description": "YieldJack — a prize-savings dApp for Robinhood Chain. Includes the production frontend (apps/web) and the original testnet/demo MVP (apps/demo-web).",
   "license": "MIT",
   "packageManager": "pnpm@9.15.0",
   "engines": {
@@ -23,6 +23,13 @@
     "web:test": "pnpm --filter @yieldjack/web test",
     "web:build": "pnpm --filter @yieldjack/web build",
     "web:e2e": "pnpm --filter @yieldjack/web e2e",
+    "web:safety-scan": "node scripts/production-output-safety-scan.mjs",
+    "demo-web:dev": "pnpm --filter @yieldjack/demo-web dev",
+    "demo-web:lint": "pnpm --filter @yieldjack/demo-web lint",
+    "demo-web:typecheck": "pnpm --filter @yieldjack/demo-web typecheck",
+    "demo-web:test": "pnpm --filter @yieldjack/demo-web test",
+    "demo-web:build": "pnpm --filter @yieldjack/demo-web build",
+    "demo-web:e2e": "pnpm --filter @yieldjack/demo-web e2e",
     "keeper:build": "pnpm --filter @yieldjack/keeper build",
     "keeper:start": "pnpm --filter @yieldjack/keeper start"
   },

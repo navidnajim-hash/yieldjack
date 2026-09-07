@@ -12,11 +12,16 @@ node_modules/
 apps/web/.next/
 apps/web/out/
 apps/web/next-env.d.ts
+apps/demo-web/.next/
+apps/demo-web/out/
+apps/demo-web/next-env.d.ts
 
 # Vitest / coverage
 coverage/
 apps/web/playwright-report/
 apps/web/test-results/
+apps/demo-web/playwright-report/
+apps/demo-web/test-results/
 
 # Foundry
 packages/contracts/cache/

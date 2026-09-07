@@ -1,29 +1,30 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0a0d0c;
-  --color-surface: #121613;
-  --color-surface-hover: #171c19;
-  --color-surface-raised: #1a201c;
-  --color-border: #242b26;
-  --color-border-strong: #333c35;
-  --color-foreground: #f3f4ef;
-  --color-muted: #9aa39c;
-  --color-muted-dim: #6b746e;
+  --color-background: #090b08;
+  --color-surface: #12150f;
+  --color-surface-raised: #171b13;
+  --color-surface-hover: #1b201a;
+  --color-border: #23281f;
+  --color-border-strong: #333a2b;
 
-  --color-primary: #10b981;
-  --color-primary-hover: #14c98f;
-  --color-primary-dim: #0d7a56;
+  --color-foreground: #f3f5ec;
+  --color-muted: #92998a;
+  --color-muted-dim: #676e60;
 
-  --color-gold: #e8b93f;
-  --color-gold-hover: #f2c65a;
-  --color-gold-dim: #a8811f;
+  --color-accent: #ddfe4c;
+  --color-accent-hover: #e8ff70;
+  --color-accent-dim: #a8c22e;
+  --color-accent-ink: #0b0f06;
 
   --color-danger: #ef4444;
   --color-danger-dim: #7f1d1d;
+  --color-warning: #e8b93f;
 
   --font-sans:
-    ui-sans-serif, system-ui, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
 }
 
 html {
@@ -35,29 +36,12 @@ body {
   color: var(--color-foreground);
 }
 
-/* ---- Brand motion: subtle glow, prize pulse, number roll ---- */
-
-@keyframes yj-glow-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 24px 0 rgb(16 185 129 / 12%);
-  }
-  50% {
-    box-shadow: 0 0 40px 6px rgb(16 185 129 / 28%);
-  }
+::selection {
+  background-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  color: var(--color-foreground);
 }
 
-@keyframes yj-prize-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.015);
-  }
-}
-
-@keyframes yj-roll-in {
+@keyframes yj-fade-up {
   from {
     opacity: 0;
     transform: translateY(6px);
@@ -68,31 +52,25 @@ body {
   }
 }
 
-.animate-yj-glow {
-  animation: yj-glow-pulse 3.2s ease-in-out infinite;
-}
-
-.animate-yj-prize-pulse {
-  animation: yj-prize-pulse 2.6s ease-in-out infinite;
-}
-
-.animate-yj-roll {
-  animation: yj-roll-in 0.35s ease-out;
+.animate-yj-fade-up {
+  animation: yj-fade-up 0.4s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-yj-glow,
-  .animate-yj-prize-pulse,
-  .animate-yj-roll,
   * {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-/* Focus ring consistent with brand palette, for keyboard accessibility. */
 :focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.font-tabular {
+  font-variant-numeric: tabular-nums;
 }

@@ -1,19 +1,30 @@
-import { formatUnits } from "viem";
-import { USDG_DECIMALS, JACK_DECIMALS } from "@yieldjack/config";
+import { formatUnits, parseUnits } from "viem";
 
-const usdgFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
-const jackFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 0 });
+const tokenFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 4, minimumFractionDigits: 0 });
 
-/** Formats a raw 6-decimal USDG amount as "1,234.56". */
-export function formatUsdg(amount: bigint | undefined | null): string {
+/** Formats a raw bigint token amount at `decimals` as a locale string, e.g. "1,234.5". Routes
+ *  through `formatUnits` + `Intl.NumberFormat` on the resulting string — the bigint itself is
+ *  never narrowed through `Number()`, so precision is never silently lost for large balances. */
+export function formatTokenAmount(amount: bigint | undefined | null, decimals: number): string {
   if (amount === undefined || amount === null) return "—";
-  return usdgFormatter.format(Number(formatUnits(amount, USDG_DECIMALS)));
+  return tokenFormatter.format(Number(formatUnits(amount, decimals)));
 }
 
-/** Formats a raw 18-decimal JACK amount as "1,234.56". */
-export function formatJack(amount: bigint | undefined | null): string {
-  if (amount === undefined || amount === null) return "—";
-  return jackFormatter.format(Number(formatUnits(amount, JACK_DECIMALS)));
+/**
+ * Parses a user-typed decimal string into a raw bigint at `decimals`, or `null` if the input
+ * isn't a valid non-negative decimal number. Delegates the actual scaling to viem's
+ * `parseUnits` (string-based, exact) rather than any floating-point arithmetic.
+ */
+export function parseTokenAmount(input: string, decimals: number): bigint | null {
+  const trimmed = input.trim();
+  if (trimmed.length === 0) return null;
+  if (!/^\d*\.?\d*$/.test(trimmed) || trimmed === "." ) return null;
+  try {
+    const value = parseUnits(trimmed, decimals);
+    return value >= 0n ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Shortens a 0x-address to "0x1234…abcd". */
@@ -23,17 +34,16 @@ export function shortenAddress(address: string | undefined | null): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
-/** Formats basis points (0-10000) as a percentage string, e.g. 1234 -> "12.34%". */
-export function formatBps(bps: bigint | number | undefined | null): string {
+/** Formats basis points (0-10000) as a percentage string, e.g. 7000 -> "70.00%". */
+export function formatBps(bps: number | undefined | null): string {
   if (bps === undefined || bps === null) return "—";
-  const value = Number(bps) / 100;
-  return `${value.toFixed(2)}%`;
+  return `${(bps / 100).toFixed(2)}%`;
 }
 
 /** Formats a duration in seconds as a compact "1d 2h" / "2h 3m" / "3m" / "4s" string, showing
  *  only the largest unit and the one below it. */
 export function formatDuration(totalSeconds: number): string {
-  if (totalSeconds <= 0) return "0s";
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return "0s";
   const days = Math.floor(totalSeconds / 86400);
   const hours = Math.floor((totalSeconds % 86400) / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);

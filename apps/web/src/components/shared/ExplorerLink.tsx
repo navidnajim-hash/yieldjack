@@ -1,35 +1,40 @@
 "use client";
 
-import { useExplorerBaseUrl, txExplorerUrl, addressExplorerUrl } from "@/hooks/useExplorerUrl";
+import { addressExplorerUrl, txExplorerUrl, useExplorerBaseUrl } from "@/hooks/useExplorerUrl";
+import { shortenAddress } from "@/lib/format";
 
-export function TxExplorerLink({ hash, className }: { hash: string; className?: string }) {
-  const base = useExplorerBaseUrl();
-  const url = txExplorerUrl(base, hash);
-  if (!url) return null;
+export function TxExplorerLink({ hash }: { hash: string }) {
+  const baseUrl = useExplorerBaseUrl();
+  const url = txExplorerUrl(baseUrl, hash);
+  if (!url) {
+    return <span className="font-mono text-xs text-muted">{shortenAddress(hash)}</span>;
+  }
   return (
     <a
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`text-sm text-primary underline decoration-primary/40 underline-offset-2 hover:text-primary-hover ${className ?? ""}`}
+      className="font-mono text-xs text-accent hover:text-accent-hover"
     >
-      View on explorer ↗
+      {shortenAddress(hash)} ↗
     </a>
   );
 }
 
-export function AddressExplorerLink({ address, className }: { address: string; className?: string }) {
-  const base = useExplorerBaseUrl();
-  const url = addressExplorerUrl(base, address);
-  if (!url) return null;
+export function AddressExplorerLink({ address, label }: { address: string; label?: string }) {
+  const baseUrl = useExplorerBaseUrl();
+  const url = addressExplorerUrl(baseUrl, address);
+  if (!url) {
+    return <span className="font-mono text-xs text-muted">{label ?? shortenAddress(address)}</span>;
+  }
   return (
     <a
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`text-sm text-primary underline decoration-primary/40 underline-offset-2 hover:text-primary-hover ${className ?? ""}`}
+      className="font-mono text-xs text-accent hover:text-accent-hover"
     >
-      View on explorer ↗
+      {label ?? shortenAddress(address)} ↗
     </a>
   );
 }

@@ -1,0 +1,20 @@
+{
+  "chainId": 4663,
+  "network": "robinhood-chain-mainnet",
+  "environment": "production",
+  "status": "prelaunch",
+  "updatedAt": null,
+  "contracts": {
+    "jackToken": null,
+    "jackFeeRouter": null,
+    "jackStakingRewards": null,
+    "prizeReserve": null,
+    "productionVault": null,
+    "productionPrizeEngine": null,
+    "productionAsset": null
+  },
+  "links": {
+    "jackTradeUrl": null
+  },
+  "deploymentBlock": null
+}

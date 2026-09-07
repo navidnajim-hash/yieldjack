@@ -7,9 +7,9 @@ import { useState, type ReactNode } from "react";
 import { WagmiProvider } from "wagmi";
 import { wagmiConfig } from "@/lib/wagmi";
 
-const rainbowKitYieldJackTheme = darkTheme({
-  accentColor: "#10b981",
-  accentColorForeground: "#0a0d0c",
+const yieldJackTheme = darkTheme({
+  accentColor: "#ddfe4c",
+  accentColorForeground: "#0b0f06",
   borderRadius: "medium",
   overlayBlur: "small",
 });
@@ -20,7 +20,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={rainbowKitYieldJackTheme}>{children}</RainbowKitProvider>
+        <RainbowKitProvider theme={yieldJackTheme}>{children}</RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
