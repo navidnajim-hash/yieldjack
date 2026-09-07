@@ -1,7 +1,7 @@
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import type { Wallet, WalletList } from "@rainbow-me/rainbowkit";
 import { injectedWallet, metaMaskWallet, rainbowWallet, walletConnectWallet } from "@rainbow-me/rainbowkit/wallets";
-import { localAnvil, robinhoodChainTestnet } from "@yieldjack/config";
+import { localAnvil, robinhoodChainMainnet, robinhoodChainTestnet } from "@yieldjack/config";
 import { createConfig, http } from "wagmi";
 import { hasRealWalletConnectProjectId, selectWalletNames, type WalletName } from "./walletSelection";
 
@@ -47,9 +47,10 @@ const connectors = connectorsForWallets(walletGroups, {
 
 export const wagmiConfig = createConfig({
   connectors,
-  chains: [robinhoodChainTestnet, localAnvil],
+  chains: [robinhoodChainTestnet, robinhoodChainMainnet, localAnvil],
   transports: {
     [robinhoodChainTestnet.id]: http(),
+    [robinhoodChainMainnet.id]: http(),
     [localAnvil.id]: http(),
   },
   ssr: false,

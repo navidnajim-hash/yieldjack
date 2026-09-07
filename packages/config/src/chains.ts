@@ -2,20 +2,21 @@ import { defineChain } from "viem";
 import { robinhood, robinhoodTestnet } from "viem/chains";
 
 /**
- * Robinhood Chain Testnet — the only network this app ever sends transactions to. Re-exported
- * from viem's own built-in chain list (`viem/chains`) rather than hand-rolled, so this project
- * can never drift from viem's canonical definition (which also carries a `multicall3` address,
- * letting wagmi/viem batch multi-contract reads on this chain — our own hand-rolled definition
- * didn't have one). Verified to match the chain id, RPC, and explorer URL given in this
- * project's spec exactly before adopting it.
+ * Robinhood Chain Testnet. Re-exported from viem's own built-in chain list (`viem/chains`)
+ * rather than hand-rolled, so this project can never drift from viem's canonical definition
+ * (which also carries a `multicall3` address, letting wagmi/viem batch multi-contract reads on
+ * this chain — our own hand-rolled definition didn't have one). Verified to match the chain id,
+ * RPC, and explorer URL given in this project's spec exactly before adopting it.
  */
 export const robinhoodChainTestnet = robinhoodTestnet;
 
 /**
- * Robinhood Chain (mainnet) — documented for reference and the Transparency page only. Also
- * re-exported from viem's built-in chain list. This app never connects a wallet to it, never
- * sends a transaction to it, and no deploy script in this repo is capable of broadcasting to
- * it. See docs/PRODUCTION_ROADMAP.md.
+ * Robinhood Chain (mainnet). Also re-exported from viem's built-in chain list. The only
+ * mainnet deployment this app ever connects a wallet to is the MOCK-ONLY MAINNET DEMO deployed
+ * by `script/DeployMainnetDemo.s.sol` — mUSDG and mJACK remain worthless mock tokens there, no
+ * real USDG or real $JACK is ever involved, and every page shows the mainnet-demo warning
+ * banner while connected to it. See CLAUDE.md and docs/PRODUCTION_ROADMAP.md for the absolute,
+ * still-standing prohibition on a real-value deployment.
  */
 export const robinhoodChainMainnet = robinhood;
 
@@ -37,4 +38,4 @@ export const localAnvil = defineChain({
   testnet: true,
 });
 
-export const SUPPORTED_CHAIN_IDS = [robinhoodChainTestnet.id, ANVIL_CHAIN_ID] as const;
+export const SUPPORTED_CHAIN_IDS = [robinhoodChainTestnet.id, robinhoodChainMainnet.id, ANVIL_CHAIN_ID] as const;

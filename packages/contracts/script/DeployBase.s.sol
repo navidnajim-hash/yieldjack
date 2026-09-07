@@ -15,9 +15,12 @@ import { IRandomnessProvider } from "../src/interfaces/IRandomnessProvider.sol";
 import { IBurnableERC20 } from "../src/interfaces/IBurnableERC20.sol";
 
 /// @title DeployBase
-/// @notice Shared deployment + wiring logic for both the local Anvil and Robinhood Chain
-///         Testnet deploy scripts. Deliberately has no mainnet variant — see
-///         docs/PRODUCTION_ROADMAP.md and CLAUDE.md ("never deploy mainnet").
+/// @notice Shared deployment + wiring logic for the local Anvil, Robinhood Chain Testnet, and
+///         Robinhood Chain mainnet MOCK-ONLY DEMO deploy scripts. There is deliberately no
+///         variant that deploys anything other than the mock suite — see
+///         docs/PRODUCTION_ROADMAP.md and CLAUDE.md for the absolute prohibition on a real-value
+///         mainnet deployment, and script/DeployMainnetDemo.s.sol for the one narrow, explicit,
+///         mock-only carve-out to "never deploy mainnet."
 abstract contract DeployBase is Script {
     struct Deployment {
         MockUSDG usdg;

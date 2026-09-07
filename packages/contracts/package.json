@@ -11,6 +11,7 @@
     "fmt:check": "forge fmt --check",
     "anvil": "anvil --chain-id 31337",
     "deploy:local": "forge script script/DeployLocal.s.sol:DeployLocal --rpc-url http://127.0.0.1:8545 --broadcast",
-    "deploy:testnet": "forge script script/DeployTestnet.s.sol:DeployTestnet --rpc-url $ROBINHOOD_TESTNET_RPC_URL --broadcast"
+    "deploy:testnet": "forge script script/DeployTestnet.s.sol:DeployTestnet --rpc-url $ROBINHOOD_TESTNET_RPC_URL --broadcast",
+    "deploy:mainnet-demo": "forge script script/DeployMainnetDemo.s.sol:DeployMainnetDemo --rpc-url $ROBINHOOD_MAINNET_RPC_URL"
   }
 }

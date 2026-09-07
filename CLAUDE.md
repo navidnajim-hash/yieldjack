@@ -11,10 +11,26 @@ were specified as hard constraints for this project and several are safety-criti
   hand-typed) or is one of the two explicitly documented, spec-provided addresses (Robinhood
   Chain Testnet/mainnet chain config, canonical mainnet USDG). If a real integration doesn't
   exist yet, say so — don't guess an address.
-- **Never deploy to mainnet.** There is no mainnet deploy script in this repository, and none
-  should ever be added casually. Robinhood Chain mainnet (chain id 4663) is documented for
-  reference only — see `packages/config/src/chains.ts` and
-  `docs/PRODUCTION_ROADMAP.md`.
+- **Never deploy anything but the mock-only mainnet demo to mainnet.** The sole exception to
+  "never deploy to mainnet" is `script/DeployMainnetDemo.s.sol`, which deploys the exact same
+  MockUSDG / MockJACK / MockYieldSource / DemoRandomnessProvider suite used on testnet —
+  unchanged — to Robinhood Chain mainnet (chain id 4663), gated by a chain-id check and a
+  mandatory `MAINNET_DEMO_ACK` acknowledgement, and never broadcast by any automation in this
+  repository (a human runs it locally, with their own key, and must pass `--broadcast`
+  explicitly). This is a narrow, explicit carve-out — not a general permission to add other
+  mainnet scripts or to loosen this rule further. It remains an absolute, non-negotiable rule
+  that nothing in this repository may ever:
+    - accept, integrate, or transact with canonical USDG (`CANONICAL_MAINNET_USDG` stays
+      documentation-only — never a constructor argument, never used in a live transaction);
+    - present mJACK as, or allow it to be confused with, the real `$JACK` token;
+    - add liquidity for mUSDG or mJACK on any DEX, market, or bridge, on any chain;
+    - remove, weaken, or make conditional-in-a-way-that-could-silently-fail any "MAINNET DEMO" /
+      "Mock" / "Demo" warning shown to a user — see `MainnetDemoBanner`, mounted unconditionally
+      in the root layout precisely so no page can drop it by omission;
+    - deploy a real-value version of this system (real USDG, a real yield integration,
+      production-grade randomness, or anything beyond a single-EOA demo admin) without the
+      independent audit and every other step in `docs/PRODUCTION_ROADMAP.md`.
+  See `packages/config/src/chains.ts` and `docs/PRODUCTION_ROADMAP.md` for more.
 - **Never commit secrets.** No private key, API key, or credential belongs in this repository.
   `.env.example` files list variable *names* only. Deployment scripts read credentials from the
   environment (`DEPLOYER_PRIVATE_KEY`, `KEEPER_PRIVATE_KEY`) — never hardcode a real one. The

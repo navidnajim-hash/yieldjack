@@ -9,6 +9,7 @@ import { useTxState } from "@/hooks/useTxState";
 import { useActionableRounds } from "@/hooks/useDrawHistory";
 import { useCurrentRound } from "@/hooks/useYieldJackData";
 import { formatUsdg } from "@/lib/format";
+import { GasCostNotice } from "@/components/shared/GasCostNotice";
 import { TxStatus } from "@/components/shared/TxStatus";
 
 function ActionButton({
@@ -87,6 +88,7 @@ function SimulateYieldControl() {
           Simulate yield (mUSDG)
         </button>
       </div>
+      <GasCostNotice />
       <TxStatus phase={tx.phase} hash={tx.hash} errorMessage={tx.errorMessage} />
     </div>
   );

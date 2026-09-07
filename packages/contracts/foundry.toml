@@ -37,6 +37,11 @@ quote_style = "double"
 [rpc_endpoints]
 localhost = "http://127.0.0.1:8545"
 robinhood_testnet = "${ROBINHOOD_TESTNET_RPC_URL}"
+# Robinhood Chain mainnet (chain id 4663). Only ever used with script/DeployMainnetDemo.s.sol,
+# which deploys the same worthless mock suite as testnet — see CLAUDE.md. Deployment still
+# requires the operator to pass --broadcast explicitly; see the deploy:mainnet-demo package
+# script.
+robinhood_mainnet = "${ROBINHOOD_MAINNET_RPC_URL}"
 
 # Intentionally no [etherscan] block here. Contract verification is a separate, optional,
 # manual step — see README.md § "Testnet deployment" — rather than something the default deploy

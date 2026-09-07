@@ -18,6 +18,7 @@ if (!chainId) {
 const SCRIPT_BY_CHAIN = {
   31337: { scriptFile: "DeployLocal.s.sol", name: "anvil" },
   46630: { scriptFile: "DeployTestnet.s.sol", name: "robinhood-chain-testnet" },
+  4663: { scriptFile: "DeployMainnetDemo.s.sol", name: "robinhood-chain-mainnet-demo" },
 };
 
 const CONTRACT_NAMES = [

@@ -1,8 +1,10 @@
 # Production Roadmap
 
-This testnet MVP is not production software. Nothing in this repository should be deployed to
-Robinhood Chain mainnet, and no script here is even capable of broadcasting there (see
-[CLAUDE.md](../CLAUDE.md)). This document lists what a real production deployment still needs,
+This testnet MVP is not production software. The only mainnet deploy script in this repository,
+`script/DeployMainnetDemo.s.sol`, deploys nothing but the same worthless mock suite used on
+testnet, gated behind an explicit acknowledgement and never broadcast by any automation — see
+[CLAUDE.md](../CLAUDE.md) for that narrow carve-out and the absolute prohibitions that remain
+around it. This document lists what a real, value-bearing production deployment still needs,
 roughly in the order it would need doing.
 
 ## 1. Replace every mock component

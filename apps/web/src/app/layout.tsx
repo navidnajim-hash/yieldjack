@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import { MainnetDemoBanner } from "@/components/shared/MainnetDemoBanner";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className="dark">
       <body className="flex min-h-screen flex-col font-sans antialiased">
         <Providers>
+          <MainnetDemoBanner />
           <Header />
           <main className="flex-1">{children}</main>
           <Footer />

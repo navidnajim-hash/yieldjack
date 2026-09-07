@@ -5,6 +5,7 @@ import { useContract } from "@/hooks/useContract";
 import { useTxState } from "@/hooks/useTxState";
 import { useFaucetInfo, useTokenBalance } from "@/hooks/useYieldJackData";
 import { formatDuration, formatJack, formatUsdg } from "@/lib/format";
+import { GasCostNotice } from "@/components/shared/GasCostNotice";
 import { TxStatus } from "@/components/shared/TxStatus";
 
 function useCountdown(targetUnixSeconds: bigint): number {
@@ -55,6 +56,7 @@ export function FaucetPanel() {
         <p className="text-xs text-muted">
           Worthless test tokens only. Faucets are per-wallet and rate-limited.
         </p>
+        <GasCostNotice />
       </div>
       <FaucetButton tokenName="MockUSDG" label="mUSDG" />
       <FaucetButton tokenName="MockJACK" label="mJACK" />
