@@ -38,5 +38,8 @@ quote_style = "double"
 localhost = "http://127.0.0.1:8545"
 robinhood_testnet = "${ROBINHOOD_TESTNET_RPC_URL}"
 
-[etherscan]
-robinhood_testnet = { key = "${ROBINHOOD_TESTNET_VERIFIER_KEY}", url = "${ROBINHOOD_TESTNET_VERIFIER_URL}", chain = 46630 }
+# Intentionally no [etherscan] block here. Contract verification is a separate, optional,
+# manual step — see README.md § "Testnet deployment" — rather than something the default deploy
+# command attempts automatically. Wiring it up unconditionally would mean `--verify` silently
+# fails (or behaves unpredictably) for anyone who hasn't configured Blockscout verifier
+# variables, which is most people running the demo deploy.

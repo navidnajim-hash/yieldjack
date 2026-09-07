@@ -239,6 +239,8 @@ contract DemoPrizeEngineTest is TestBase {
         jack.ownerMint(sponsorWallet, 100 ether);
         vm.stopPrank();
 
+        uint256 jackSupplyBefore = jack.totalSupply();
+
         vm.startPrank(sponsorWallet);
         usdg.approve(address(sponsorRegistry), 500e6);
         jack.approve(address(sponsorRegistry), 100 ether);
@@ -264,7 +266,11 @@ contract DemoPrizeEngineTest is TestBase {
         assertApproxEqAbs(closed.prizeAmount, 500e6, 2);
         assertEq(closed.lastSponsor, sponsorWallet);
         assertEq(closed.sponsorJackBurned, 100 ether);
-        assertEq(jack.balanceOf(0x000000000000000000000000000000000000dEaD), 100 ether);
+
+        // A genuine burn reduces total supply — it is not merely a transfer to a conventionally
+        // unspendable address, which would leave totalSupply unchanged. See IBurnableERC20.
+        assertEq(jack.totalSupply(), jackSupplyBefore - 100 ether, "JACK must be actually burned, not just moved");
+        assertEq(jack.balanceOf(sponsorWallet), 0, "sponsor's JACK balance must be spent by the burn");
     }
 
     function test_sponsorBelowMinJackBurnReverts() public {

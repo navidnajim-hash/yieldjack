@@ -2,15 +2,22 @@
 pragma solidity 0.8.26;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { ERC20Burnable } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IBurnableERC20 } from "../interfaces/IBurnableERC20.sol";
 
 /// @title MockJACK
 /// @notice TESTNET ONLY. Stands in for the future real $JACK token so SponsorRegistry can
 ///         demonstrate JACK-burn-to-sponsor utility. This contract has no relationship to the
-///         eventual production $JACK token, which will be deployed and configured separately
-///         — see `SponsorRegistry.setJackToken`. Never hardcode a "real" $JACK address anywhere
-///         in this codebase; it does not exist yet.
-contract MockJACK is ERC20, Ownable {
+///         eventual production $JACK token, which will be deployed and configured separately —
+///         the real token's address is a `SponsorRegistry` constructor parameter, never
+///         hardcoded. Never hardcode a "real" $JACK address anywhere in this codebase; it does
+///         not exist yet.
+/// @dev Extends `ERC20Burnable` so `SponsorRegistry.sponsor` can perform a genuine,
+///      supply-reducing `burnFrom` — not merely a transfer to a conventionally-unspendable
+///      address, which would not actually reduce `totalSupply()` and must never be described as
+///      a burn. See `IBurnableERC20` and docs/ACCOUNTING_INVARIANTS.md.
+contract MockJACK is ERC20, ERC20Burnable, Ownable, IBurnableERC20 {
     event FaucetClaimed(address indexed account, uint256 amount, uint256 nextClaimAvailableAt);
 
     error FaucetCooldownActive(uint256 availableAt);
@@ -45,5 +52,12 @@ contract MockJACK is ERC20, Ownable {
     /// @dev Restricted to the deployer/owner and used only by local demo seed scripts.
     function ownerMint(address to, uint256 amount) external onlyOwner {
         _mint(to, amount);
+    }
+
+    /// @inheritdoc IBurnableERC20
+    /// @dev Thin pass-through required because both `ERC20Burnable` and `IBurnableERC20`
+    ///      declare this function — fully implemented by `ERC20Burnable`.
+    function burnFrom(address account, uint256 amount) public override(ERC20Burnable, IBurnableERC20) {
+        super.burnFrom(account, amount);
     }
 }

@@ -12,12 +12,11 @@ import { DemoPrizeEngine } from "../../src/prize/DemoPrizeEngine.sol";
 import { SponsorRegistry } from "../../src/prize/SponsorRegistry.sol";
 import { IRandomnessProvider } from "../../src/interfaces/IRandomnessProvider.sol";
 import { IYieldSource } from "../../src/interfaces/IYieldSource.sol";
+import { IBurnableERC20 } from "../../src/interfaces/IBurnableERC20.sol";
 
 /// @notice Shared deployment + helpers for the YieldJack test suite. Mirrors the wiring order
 ///         used by script/DeployLocal.s.sol so tests exercise the same topology as the demo.
 contract TestBase is Test {
-    address internal constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-
     uint256 internal constant ROUND_DURATION = 1 hours;
     uint256 internal constant CLAIM_EXPIRY = 1 hours;
     uint256 internal constant DEPOSIT_CAP = 1_000_000e6;
@@ -52,7 +51,7 @@ contract TestBase is Test {
         engine = new DemoPrizeEngine(
             vault, IRandomnessProvider(address(randomness)), deployer, ROUND_DURATION, CLAIM_EXPIRY
         );
-        sponsorRegistry = new SponsorRegistry(engine, usdg, jack, BURN_ADDRESS, MIN_JACK_BURN, deployer);
+        sponsorRegistry = new SponsorRegistry(engine, usdg, IBurnableERC20(address(jack)), MIN_JACK_BURN, deployer);
 
         vault.setPrizeEngine(address(engine));
         randomness.setPrizeEngine(address(engine));

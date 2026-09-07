@@ -108,7 +108,7 @@ contract YieldJackVaultTest is TestBase {
         vault.pullYield(1, address(this));
 
         vm.expectRevert(abi.encodeWithSelector(YieldJackVault.NotPrizeEngine.selector, address(this)));
-        vault.snapshotAndReset(block.timestamp, block.timestamp);
+        vault.snapshotAndReset();
     }
 
     function test_availableYieldExcludesPrincipal() public {
@@ -126,13 +126,22 @@ contract YieldJackVaultTest is TestBase {
         assertApproxEqAbs(vault.availableYield(), 50e6, 2);
     }
 
-    function test_participantRemovedWhenBalanceHitsZero() public {
+    /// @notice A full withdrawal must NOT immediately drop the participant from the active set
+    ///         — that would discard their already-earned weight for the current round (see
+    ///         RoundBoundaryRegressions.t.sol). They are removed only as part of the next
+    ///         snapshot's cleanup pass, once their weight has been recorded.
+    function test_participantKeepsSlotAfterFullWithdrawalUntilNextSnapshot() public {
         _deposit(alice, 100e6);
         assertEq(vault.activeParticipantCount(), 1);
 
         vm.prank(alice);
         vault.withdraw(100e6);
-        assertEq(vault.activeParticipantCount(), 0);
+        assertEq(vault.activeParticipantCount(), 1, "must stay active until the next snapshot");
+        assertEq(vault.principal(alice), 0);
+
+        vm.prank(address(engine));
+        vault.snapshotAndReset();
+        assertEq(vault.activeParticipantCount(), 0, "zero-principal participant must be cleaned up at snapshot");
     }
 
     function test_participantCapEnforced() public {
@@ -167,8 +176,7 @@ contract YieldJackVaultTest is TestBase {
         vm.warp(roundEnd);
 
         vm.prank(address(engine));
-        (address[] memory participants, uint256[] memory weights, uint256 totalWeight) =
-            vault.snapshotAndReset(roundEnd, roundEnd);
+        (address[] memory participants, uint256[] memory weights, uint256 totalWeight) = vault.snapshotAndReset();
 
         uint256 aliceWeight;
         uint256 bobWeight;
@@ -183,22 +191,27 @@ contract YieldJackVaultTest is TestBase {
         assertGt(aliceWeight, bobWeight, "equal-sized late deposit must weigh less");
     }
 
-    function test_snapshotCarriesForwardTimePastAsOfIntoNewWindow() public {
+    /// @notice A round closed "late" (after its scheduled `endTime`) snapshots at the actual
+    ///         close timestamp — not the scheduled `endTime` — so time between the two never
+    ///         goes missing (and, per RoundBoundaryRegressions.t.sol, never leaks into the
+    ///         round being closed either). Two consecutive close calls must exactly partition
+    ///         the elapsed time with no gap and no double-count.
+    function test_lateCloseAccountsForFullElapsedTimeAcrossConsecutiveSnapshots() public {
         uint256 t0 = vault.accrualWindowStart();
         _deposit(alice, 1_000e6);
 
         uint256 roundEnd = t0 + ROUND_DURATION;
         // Close is called a bit late — 100 seconds after the scheduled round end.
         vm.warp(roundEnd + 100);
-
         vm.prank(address(engine));
-        vault.snapshotAndReset(roundEnd, roundEnd + 100);
+        (, uint256[] memory firstWeights,) = vault.snapshotAndReset();
+        assertEq(firstWeights[0], 1_000e6 * (ROUND_DURATION + 100), "late close must account for the full period");
 
-        // The 100 seconds between roundEnd and the actual close call should already be
-        // reflected as pending weight in the new window, not lost.
+        // A second close 500 seconds later must cover exactly that 500-second window — nothing
+        // from before the first snapshot, nothing missing.
         vm.warp(roundEnd + 100 + 500);
         vm.prank(address(engine));
-        (, uint256[] memory weights,) = vault.snapshotAndReset(roundEnd + 100 + 500, roundEnd + 100 + 500);
-        assertEq(weights[0], 1_000e6 * 600);
+        (, uint256[] memory secondWeights,) = vault.snapshotAndReset();
+        assertEq(secondWeights[0], 1_000e6 * 500);
     }
 }

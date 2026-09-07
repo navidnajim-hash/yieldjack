@@ -32,6 +32,28 @@ import { IYieldSource } from "../interfaces/IYieldSource.sol";
 ///        locked and is never an ongoing admin capability.
 ///      - Administrative pause blocks new deposits only. Withdrawals always remain available,
 ///        even while paused, so a pause can never be used to trap depositor funds.
+///      - Round-boundary semantics: `DemoPrizeEngine`'s round `endTime` is the EARLIEST
+///        permissionless close time, not a hard weight cutoff. `snapshotAndReset` always
+///        snapshots as of `block.timestamp` — the instant `closeRound` actually executes — and
+///        the new accrual window starts at that exact same instant. A deposit or withdrawal
+///        made after the scheduled `endTime` but before anyone has actually closed the round is
+///        still genuinely part of that still-open round, weighted correctly for however long it
+///        was actually held. There is no longer a separate, earlier "asOf" for a later
+///        checkpoint to outrun, which is what let weight leak across a round boundary before —
+///        see docs/ACCOUNTING_INVARIANTS.md.
+///      - A user who fully withdraws mid-round stays in the active-participant set — with their
+///        already-accrued weight intact — until the *next* snapshot, so that weight is correctly
+///        credited to the round they earned it in. They are removed only as part of that
+///        snapshot's cleanup pass, once their weight has been recorded and their pending weight
+///        reset to zero, so a later deposit (in any future round) can never pick up stale weight
+///        from a round they already left. The trade-off — a repeatedly-withdrawn address holds
+///        its `MAX_PARTICIPANTS` slot until the round closes rather than freeing it immediately —
+///        is bounded by the round's own duration and is an accepted testnet-only limitation.
+///      - `withdraw` pays out at most the yield source's real redeemable claim, which can be
+///        less than the amount requested (rounding dust, or in a more severe case an actual
+///        yield-source loss). Principal is reduced by exactly the amount paid, never by the
+///        amount requested — an unpaid remainder always stays recorded as principal instead of
+///        being silently erased.
 contract YieldJackVault is Ownable, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -72,7 +94,9 @@ contract YieldJackVault is Ownable, Pausable, ReentrancyGuard {
     mapping(address => uint256) private participantIndexPlusOne; // 0 == not present
 
     event Deposited(address indexed user, uint256 assets, uint256 newPrincipal);
-    event Withdrawn(address indexed user, uint256 assets, uint256 newPrincipal);
+    /// @param requested The amount the caller asked to withdraw.
+    /// @param paid The amount actually transferred — may be less than `requested`; see `withdraw`.
+    event Withdrawn(address indexed user, uint256 requested, uint256 paid, uint256 remainingPrincipal);
     event PrizeEngineSet(address indexed engine);
     event DepositCapUpdated(uint256 newCap);
     event YieldPulled(address indexed to, uint256 requested, uint256 actual);
@@ -154,33 +178,43 @@ contract YieldJackVault is Ownable, Pausable, ReentrancyGuard {
         emit Deposited(msg.sender, assets, principal[msg.sender]);
     }
 
-    /// @notice Withdraws `assets` of principal back to the caller. Always available, including
-    ///         while the vault is paused.
-    /// @dev The actual amount transferred is capped at the yield source's floor-rounded claim
-    ///      for this vault (`totalAssetsOf(address(this))`, equivalent to ERC-4626's
-    ///      `maxWithdraw`). In extreme yield-to-principal ratios, compounding floor-rounding
-    ///      can leave that claim a wei or two below the nominal request; capping (instead of
-    ///      reverting) means a legitimate withdrawal of one's full principal can never be
-    ///      trapped by rounding dust — see docs/ACCOUNTING_INVARIANTS.md.
-    function withdraw(uint256 assets) external nonReentrant {
+    /// @notice Withdraws up to `assets` of principal back to the caller. Always available,
+    ///         including while the vault is paused.
+    /// @dev The actual amount paid is capped at the yield source's real redeemable claim
+    ///      (`totalAssetsOf(address(this))`, equivalent to ERC-4626's `maxWithdraw`) — this can
+    ///      be less than `assets`, either from ordinary floor-rounding dust or, more seriously,
+    ///      an actual loss of value in the yield source. Principal (and `totalPrincipal`) is
+    ///      decreased by exactly `paid`, never by `assets` — an unpaid remainder always stays
+    ///      recorded as principal rather than being silently erased, and can be withdrawn later
+    ///      (e.g. once the yield source recovers value, or via a smaller request). A
+    ///      zero-payment withdrawal is a valid, non-reverting no-op with respect to state: it
+    ///      changes nothing and simply reports `paid == 0`. See
+    ///      docs/ACCOUNTING_INVARIANTS.md.
+    ///
+    ///      Note that a full withdrawal does NOT remove the caller from the active-participant
+    ///      set here — that happens as part of the next `snapshotAndReset`, so their
+    ///      already-earned weight for the current round is never lost. See the design notes at
+    ///      the top of this file.
+    /// @return paid The amount of the underlying asset actually transferred to the caller.
+    function withdraw(uint256 assets) external nonReentrant returns (uint256 paid) {
         if (assets == 0) revert ZeroAmount();
         uint256 bal = principal[msg.sender];
         if (assets > bal) revert InsufficientPrincipal(bal, assets);
 
         _accrue(msg.sender);
 
-        uint256 newBal = bal - assets;
-        principal[msg.sender] = newBal;
-        totalPrincipal -= assets;
-        if (newBal == 0) _removeParticipant(msg.sender);
-
         uint256 vaultClaim = yieldSource.totalAssetsOf(address(this));
-        uint256 toWithdraw = assets > vaultClaim ? vaultClaim : assets;
-        if (toWithdraw > 0) {
-            yieldSource.withdraw(toWithdraw, msg.sender, address(this));
+        paid = assets > vaultClaim ? vaultClaim : assets;
+
+        uint256 newBal = bal - paid;
+        principal[msg.sender] = newBal;
+        totalPrincipal -= paid;
+
+        if (paid > 0) {
+            yieldSource.withdraw(paid, msg.sender, address(this));
         }
 
-        emit Withdrawn(msg.sender, toWithdraw, newBal);
+        emit Withdrawn(msg.sender, assets, paid, newBal);
     }
 
     // ---------------------------------------------------------------------
@@ -199,12 +233,17 @@ contract YieldJackVault is Ownable, Pausable, ReentrancyGuard {
         emit YieldPulled(to, amount, actual);
     }
 
-    /// @notice Finalizes eligibility weight for every active participant as of `asOf`
-    ///         (the closing round's end time), then opens a fresh accrual window starting
-    ///         `newWindowStart` (carrying forward any time already elapsed past `asOf`).
-    ///         Bounded to at most `MAX_PARTICIPANTS` iterations.
-    /// @dev Only the prize engine may call this, and only at round close.
-    function snapshotAndReset(uint256 asOf, uint256 newWindowStart)
+    /// @notice Finalizes eligibility weight for every active participant as of right now (the
+    ///         instant this executes — always the actual round-close time, since it is only
+    ///         ever called synchronously from `DemoPrizeEngine.closeRound`), then opens a fresh
+    ///         accrual window starting at that same instant. Also removes any participant left
+    ///         with zero principal, so a later deposit always starts from zero stale weight.
+    ///         Bounded to at most `2 * MAX_PARTICIPANTS` iterations (one snapshot pass, one
+    ///         cleanup pass).
+    /// @dev Only the prize engine may call this, and only at round close. See the round-boundary
+    ///      and full-withdrawal design notes at the top of this file for why this uses
+    ///      `block.timestamp` uniformly instead of a separately-tracked `asOf`.
+    function snapshotAndReset()
         external
         onlyPrizeEngine
         returns (address[] memory participants, uint256[] memory weights, uint256 totalWeight)
@@ -215,19 +254,26 @@ contract YieldJackVault is Ownable, Pausable, ReentrancyGuard {
 
         for (uint256 i = 0; i < n; ++i) {
             address user = activeParticipantList[i];
-            uint256 weight = _weightAsOf(user, asOf);
+            uint256 weight = _weightAsOf(user, block.timestamp);
 
             participants[i] = user;
             weights[i] = weight;
             totalWeight += weight;
 
-            // Carry forward any time between `asOf` and now into the new window.
-            pendingWeight[user] = block.timestamp > asOf ? principal[user] * (block.timestamp - asOf) : 0;
+            pendingWeight[user] = 0;
             lastUpdate[user] = block.timestamp;
         }
 
-        accrualWindowStart = newWindowStart;
-        emit EligibilitySnapshot(asOf, n, totalWeight);
+        // Second, backward pass: remove now-zero-principal participants. Backward iteration
+        // makes swap-and-pop removal safe without disturbing indices not yet visited, and never
+        // touches an index whose weight hasn't already been recorded above.
+        for (uint256 i = activeParticipantList.length; i > 0; --i) {
+            address user = activeParticipantList[i - 1];
+            if (principal[user] == 0) _removeParticipant(user);
+        }
+
+        accrualWindowStart = block.timestamp;
+        emit EligibilitySnapshot(block.timestamp, n, totalWeight);
     }
 
     // ---------------------------------------------------------------------

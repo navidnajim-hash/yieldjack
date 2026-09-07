@@ -100,6 +100,20 @@ contract Handler is TestBase {
         }
     }
 
+    /// @notice Randomly perturbs the two owner-configurable timing knobs, to fuzz for admin
+    ///         changes leaking into a round that has already opened (they must not — both are
+    ///         frozen per-round at open time; see DemoPrizeEngine._openRound).
+    function changeAdminConfig(uint256 durationSeed, uint256 expirySeed) external {
+        callCount++;
+        uint256 newDuration = bound(durationSeed, engine.MIN_ROUND_DURATION(), engine.MAX_ROUND_DURATION());
+        uint256 newExpiry = bound(expirySeed, engine.MIN_CLAIM_EXPIRY(), engine.MAX_CLAIM_EXPIRY());
+
+        vm.startPrank(deployer);
+        engine.setRoundDuration(newDuration);
+        engine.setClaimExpiry(newExpiry);
+        vm.stopPrank();
+    }
+
     function actorCount() external view returns (uint256) {
         return actors.length;
     }
@@ -114,6 +128,12 @@ contract Handler is TestBase {
 contract InvariantsTest is StdInvariant, Test {
     Handler internal handler;
 
+    // Tracks each round's terms (endTime, claimExpirySeconds) the first time it's observed, so
+    // invariant_adminConfigChangesNeverAlterOpenedRoundTerms can catch any later drift.
+    mapping(uint256 => bool) internal roundTermsRecorded;
+    mapping(uint256 => uint64) internal recordedEndTime;
+    mapping(uint256 => uint64) internal recordedClaimExpirySeconds;
+
     function setUp() public {
         handler = new Handler();
         handler.setUp();
@@ -122,12 +142,13 @@ contract InvariantsTest is StdInvariant, Test {
         // Restrict the fuzzer to exactly the intended action functions. Without this, Foundry
         // treats every public/external function on Handler as a fuzzable target — including
         // its inherited `setUp()`, which would redeploy an entirely fresh system mid-campaign.
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = Handler.deposit.selector;
         selectors[1] = Handler.withdraw.selector;
         selectors[2] = Handler.simulateYield.selector;
         selectors[3] = Handler.advanceRound.selector;
         selectors[4] = Handler.progressAndClaim.selector;
+        selectors[5] = Handler.changeAdminConfig.selector;
         targetSelector(FuzzSelector({ addr: address(handler), selectors: selectors }));
     }
 
@@ -181,6 +202,78 @@ contract InvariantsTest is StdInvariant, Test {
             token.approve(address(v), received);
             v.deposit(received);
             vm.stopPrank();
+        }
+    }
+
+    /// @notice No participant's live-previewed weight may ever exceed what the maximum possible
+    ///         holding time in the *current* accrual window allows — i.e. no weight earned in an
+    ///         earlier round (before `accrualWindowStart`) can ever be reflected in the current
+    ///         one. This is the general form of "no weight crossing round boundaries": if stale
+    ///         weight from a prior round ever leaked into the current one (the bug this suite
+    ///         regression-tests directly in RoundBoundaryRegressions.t.sol), a participant's
+    ///         weight would exceed `principal * (now - accrualWindowStart)`, which this catches
+    ///         under arbitrary randomized activity, not just the specific hand-crafted scenario.
+    function invariant_noWeightCrossesAccrualWindowBoundary() public view {
+        YieldJackVault v = handler.vault();
+        uint256 windowStart = v.accrualWindowStart();
+        uint256 maxElapsed = block.timestamp - windowStart;
+
+        (address[] memory participants, uint256[] memory weights,) = v.previewAllWeights(block.timestamp);
+        for (uint256 i = 0; i < participants.length; i++) {
+            uint256 principal = v.principal(participants[i]);
+            uint256 maxPossibleWeight = principal * maxElapsed;
+            assertLe(weights[i], maxPossibleWeight, "a participant's weight exceeds what this accrual window allows");
+        }
+    }
+
+    /// @notice `DemoPrizeEngine`'s own token balance must always cover every liability it could
+    ///         be asked to pay right now: every AWARDED-and-unclaimed round still inside its
+    ///         claim window, plus funds already rolled/pending for a future round, plus whatever
+    ///         is already escrowed in the currently open round (e.g. from sponsorship).
+    function invariant_engineBalanceCoversOutstandingLiabilities() public view {
+        DemoPrizeEngine e = handler.engine();
+        MockUSDG token = handler.usdg();
+
+        uint256 liabilities = e.pendingRolloverFunds();
+        uint256 lastRoundId = e.currentRoundId();
+        for (uint256 id = 1; id <= lastRoundId; id++) {
+            DemoPrizeEngine.RoundSummary memory r = e.getRound(id);
+            if (r.state == IPrizeEngine.RoundState.OPEN || r.state == IPrizeEngine.RoundState.RANDOMNESS_REQUESTED) {
+                liabilities += r.prizeAmount; // sponsor funds already escrowed, not yet awarded
+            } else if (r.state == IPrizeEngine.RoundState.AWARDED && !r.claimed) {
+                liabilities += r.prizeAmount; // owed to the winner until claimed or rolled over
+            }
+        }
+
+        assertGe(
+            token.balanceOf(address(e)) + _dustTolerance(),
+            liabilities,
+            "prize engine balance does not cover its outstanding prize/rollover liabilities"
+        );
+    }
+
+    /// @notice Once a round has opened, its frozen terms (`endTime`, `claimExpirySeconds`) must
+    ///         never change afterward, no matter how many times the owner calls
+    ///         `setRoundDuration`/`setClaimExpiry` in between — see AdminTimingRegressions.t.sol
+    ///         for the targeted unit version of this same property.
+    function invariant_adminConfigChangesNeverAlterOpenedRoundTerms() public {
+        DemoPrizeEngine e = handler.engine();
+        uint256 lastRoundId = e.currentRoundId();
+
+        for (uint256 id = 1; id <= lastRoundId; id++) {
+            DemoPrizeEngine.RoundSummary memory r = e.getRound(id);
+            if (!roundTermsRecorded[id]) {
+                roundTermsRecorded[id] = true;
+                recordedEndTime[id] = r.endTime;
+                recordedClaimExpirySeconds[id] = r.claimExpirySeconds;
+                continue;
+            }
+            assertEq(r.endTime, recordedEndTime[id], "a round's endTime changed after it was opened");
+            assertEq(
+                r.claimExpirySeconds,
+                recordedClaimExpirySeconds[id],
+                "a round's claimExpirySeconds changed after it was opened"
+            );
         }
     }
 }

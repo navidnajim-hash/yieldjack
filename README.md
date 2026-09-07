@@ -101,8 +101,27 @@ node scripts/build-deployment-manifest.mjs 46630
 ```
 
 This repository never asks for or transmits a private key on your behalf — export it in your own
-shell. There is deliberately no equivalent script for mainnet (chain id 4663); see
+shell, and it is read from the environment *inside* the Foundry script (`vm.envUint`), never
+passed as a `--private-key` command-line argument, so it never ends up in shell history or a
+process listing. There is deliberately no equivalent script for mainnet (chain id 4663); see
 [CLAUDE.md](CLAUDE.md).
+
+### Contract verification (separate, optional step)
+
+Verification is **not** part of the default deploy command — it needs Blockscout-specific
+variables this repo has no way to confirm ahead of time, so attempting it unconditionally would
+just fail silently for anyone who hasn't set them up. Once you've confirmed the right invocation
+against `https://explorer.testnet.chain.robinhood.com`, verify a deployed contract manually:
+
+```bash
+forge verify-contract \
+  --rpc-url $ROBINHOOD_TESTNET_RPC_URL \
+  --verifier blockscout \
+  --verifier-url https://explorer.testnet.chain.robinhood.com/api \
+  <deployed-address> <path/to/Contract.sol>:<ContractName>
+```
+
+Repeat per contract, using the addresses from `deployments/46630.json` after deploying.
 
 ## Frontend deployment / static export
 

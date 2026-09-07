@@ -6,12 +6,16 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import { IPrizeEngine } from "../interfaces/IPrizeEngine.sol";
+import { IBurnableERC20 } from "../interfaces/IBurnableERC20.sol";
 
 /// @title SponsorRegistry
-/// @notice Lets anyone fund a bonus prize for the currently open round in MockUSDG, burning a
-///         configurable amount of MockJACK in the process — the MVP's demonstration of $JACK
-///         utility. TESTNET ONLY: MockJACK is not the real $JACK token (see MockJACK.sol); the
-///         real token's address will be wired up separately post-launch.
+/// @notice Lets anyone fund a bonus prize for the currently open round in MockUSDG, actually
+///         burning (via `IBurnableERC20.burnFrom` — a real, supply-reducing ERC-20 burn, not a
+///         transfer to a conventionally-unspendable address) a configurable amount of MockJACK
+///         in the process — the MVP's demonstration of $JACK utility. TESTNET ONLY: MockJACK is
+///         not the real $JACK token (see MockJACK.sol); the real token's address will be wired
+///         up separately post-launch, and must itself implement `IBurnableERC20` for this
+///         contract to work unmodified — see docs/PRODUCTION_ROADMAP.md.
 /// @dev Sponsorship only ever touches a round's `prizeAmount` via `IPrizeEngine.addSponsorFunds`
 ///      — it never touches `YieldJackVault` principal or any user's eligibility weight, so
 ///      sponsoring can never buy better base odds for the sponsor or for JACK holders generally.
@@ -23,10 +27,7 @@ contract SponsorRegistry is Ownable {
 
     IPrizeEngine public immutable prizeEngine;
     IERC20 public immutable usdg;
-    IERC20 public immutable jack;
-
-    /// @notice Address MockJACK is sent to when sponsoring. Conventionally unspendable.
-    address public immutable burnAddress;
+    IBurnableERC20 public immutable jack;
 
     /// @notice Minimum MockJACK a sponsor must burn per sponsorship. Owner-adjustable; does not
     ///         affect prize odds, only the cost of sponsoring.
@@ -45,21 +46,16 @@ contract SponsorRegistry is Ownable {
     constructor(
         IPrizeEngine prizeEngine_,
         IERC20 usdg_,
-        IERC20 jack_,
-        address burnAddress_,
+        IBurnableERC20 jack_,
         uint256 minJackBurn_,
         address initialOwner
     ) Ownable(initialOwner) {
-        if (
-            address(prizeEngine_) == address(0) || address(usdg_) == address(0) || address(jack_) == address(0)
-                || burnAddress_ == address(0)
-        ) {
+        if (address(prizeEngine_) == address(0) || address(usdg_) == address(0) || address(jack_) == address(0)) {
             revert ZeroAddress();
         }
         prizeEngine = prizeEngine_;
         usdg = usdg_;
         jack = jack_;
-        burnAddress = burnAddress_;
         minJackBurn = minJackBurn_;
     }
 
@@ -86,7 +82,9 @@ contract SponsorRegistry is Ownable {
 
         usdg.safeTransferFrom(msg.sender, address(prizeEngine), usdgAmount);
         if (jackBurnAmount > 0) {
-            jack.safeTransferFrom(msg.sender, burnAddress, jackBurnAmount);
+            // A genuine supply-reducing burn (totalSupply() actually decreases), not a transfer
+            // to a "dead" address — see the contract-level notes above and IBurnableERC20.
+            jack.burnFrom(msg.sender, jackBurnAmount);
         }
 
         prizeEngine.addSponsorFunds(roundId, usdgAmount, msg.sender, jackBurnAmount, metadata);

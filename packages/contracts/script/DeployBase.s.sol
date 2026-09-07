@@ -12,14 +12,13 @@ import { DemoPrizeEngine } from "../src/prize/DemoPrizeEngine.sol";
 import { SponsorRegistry } from "../src/prize/SponsorRegistry.sol";
 import { IYieldSource } from "../src/interfaces/IYieldSource.sol";
 import { IRandomnessProvider } from "../src/interfaces/IRandomnessProvider.sol";
+import { IBurnableERC20 } from "../src/interfaces/IBurnableERC20.sol";
 
 /// @title DeployBase
 /// @notice Shared deployment + wiring logic for both the local Anvil and Robinhood Chain
 ///         Testnet deploy scripts. Deliberately has no mainnet variant — see
 ///         docs/PRODUCTION_ROADMAP.md and CLAUDE.md ("never deploy mainnet").
 abstract contract DeployBase is Script {
-    address internal constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-
     struct Deployment {
         MockUSDG usdg;
         MockJACK jack;
@@ -44,7 +43,7 @@ abstract contract DeployBase is Script {
         d.engine = new DemoPrizeEngine(
             d.vault, IRandomnessProvider(address(d.randomness)), deployer, roundDuration, claimExpiry
         );
-        d.sponsorRegistry = new SponsorRegistry(d.engine, d.usdg, d.jack, BURN_ADDRESS, 100 ether, deployer);
+        d.sponsorRegistry = new SponsorRegistry(d.engine, d.usdg, IBurnableERC20(address(d.jack)), 100 ether, deployer);
 
         d.vault.setPrizeEngine(address(d.engine));
         d.randomness.setPrizeEngine(address(d.engine));

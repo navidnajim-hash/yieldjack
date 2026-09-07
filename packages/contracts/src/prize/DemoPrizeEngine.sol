@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import { IPrizeEngine } from "../interfaces/IPrizeEngine.sol";
 import { IRandomnessProvider } from "../interfaces/IRandomnessProvider.sol";
@@ -28,6 +29,7 @@ import { YieldJackVault } from "../vault/YieldJackVault.sol";
 ///        known gas ceiling. TESTNET ONLY — see docs/PRODUCTION_ROADMAP.md.
 contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
+    using SafeCast for uint256;
 
     struct Round {
         RoundState state;
@@ -35,6 +37,10 @@ contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
         uint64 endTime;
         uint64 awardedAt;
         uint64 claimDeadline;
+        /// @notice The claim-window length (seconds) frozen in at round open — see `_openRound`.
+        ///         `finalize` uses this, never the live, owner-mutable `claimExpiry`, so no
+        ///         admin change after a round opens can affect its claim window.
+        uint64 claimExpirySeconds;
         uint256 prizeAmount;
         uint256 totalWeight;
         uint256 requestId;
@@ -57,6 +63,7 @@ contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
         uint64 endTime;
         uint64 awardedAt;
         uint64 claimDeadline;
+        uint64 claimExpirySeconds;
         uint256 prizeAmount;
         uint256 totalWeight;
         uint256 requestId;
@@ -79,14 +86,27 @@ contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
     ///         `setPrizeEngine` for the same pattern and rationale).
     address public sponsorRegistry;
 
+    /// @notice Lower/upper sanity bounds for `roundDuration` and `claimExpiry`. Prevent a
+    ///         degenerate value (in particular zero, which for `claimExpiry` would lock every
+    ///         winner out instantly) from ever taking effect, whether set at construction or via
+    ///         the owner setters below.
+    uint256 public constant MIN_ROUND_DURATION = 60;
+    uint256 public constant MAX_ROUND_DURATION = 365 days;
+    uint256 public constant MIN_CLAIM_EXPIRY = 60;
+    uint256 public constant MAX_CLAIM_EXPIRY = 365 days;
+
     /// @notice Length of a round, in seconds. Production default is 7 days; local/testnet demo
-    ///         deployments use a much shorter value. Changing this only affects rounds opened
-    ///         after the change — never the currently open round.
+    ///         deployments use a much shorter value. Read once, at `_openRound` time, into that
+    ///         round's `endTime` — changing this only affects rounds opened after the change,
+    ///         never the currently open round (`endTime` is already fixed by then).
     uint256 public roundDuration;
 
-    /// @notice Time after `awardedAt` during which the winner may claim before anyone may roll
-    ///         the prize forward. Frozen into each round at award time, so changing this can
-    ///         never retroactively shorten a round already in flight.
+    /// @notice Time (seconds) after `awardedAt` during which the winner may claim before anyone
+    ///         may roll the prize forward. Read once, at `_openRound` time, into that round's
+    ///         `claimExpirySeconds` (frozen — see the `Round` struct) — `finalize` uses the
+    ///         frozen per-round value, never this live global, so changing this can never
+    ///         retroactively affect a round that has already opened, whether it's still
+    ///         accepting deposits, already closed and awaiting randomness, or already awarded.
     uint256 public claimExpiry;
 
     uint256 public currentRoundId;
@@ -119,6 +139,8 @@ contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
     error ClaimWindowExpired(uint256 roundId);
     error ClaimWindowNotExpired(uint256 claimDeadline);
     error VaultPaused();
+    error RoundDurationOutOfBounds(uint256 value, uint256 min, uint256 max);
+    error ClaimExpiryOutOfBounds(uint256 value, uint256 min, uint256 max);
 
     modifier onlySponsorRegistry() {
         if (msg.sender != sponsorRegistry) revert NotSponsorRegistry(msg.sender);
@@ -135,6 +157,9 @@ contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
         if (address(vault_) == address(0) || address(randomnessProvider_) == address(0)) {
             revert ZeroAddress();
         }
+        _validateRoundDuration(roundDuration_);
+        _validateClaimExpiry(claimExpiry_);
+
         vault = vault_;
         randomnessProvider = randomnessProvider_;
         asset = vault_.asset();
@@ -156,12 +181,20 @@ contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
         emit SponsorRegistrySet(registry);
     }
 
+    /// @notice Updates the round length used by rounds opened after this call. Never affects
+    ///         the currently open round (its `endTime` is already fixed) or any closed/in-flight
+    ///         round.
     function setRoundDuration(uint256 newDuration) external onlyOwner {
+        _validateRoundDuration(newDuration);
         roundDuration = newDuration;
         emit RoundDurationUpdated(newDuration);
     }
 
+    /// @notice Updates the claim-window length used by rounds opened after this call. Never
+    ///         affects the currently open round or any round that has already opened — see
+    ///         `Round.claimExpirySeconds` and `_openRound`.
     function setClaimExpiry(uint256 newExpiry) external onlyOwner {
+        _validateClaimExpiry(newExpiry);
         claimExpiry = newExpiry;
         emit ClaimExpiryUpdated(newExpiry);
     }
@@ -185,8 +218,7 @@ contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
         if (r.state != RoundState.OPEN) revert RoundNotOpen(roundId);
         if (block.timestamp < r.endTime) revert RoundNotExpired(r.endTime);
 
-        (address[] memory participants, uint256[] memory weights, uint256 totalWeight) =
-            vault.snapshotAndReset(r.endTime, block.timestamp);
+        (address[] memory participants, uint256[] memory weights, uint256 totalWeight) = vault.snapshotAndReset();
 
         r.totalWeight = totalWeight;
         for (uint256 i = 0; i < participants.length; ++i) {
@@ -229,8 +261,10 @@ contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
 
         r.winner = winner;
         r.state = RoundState.AWARDED;
-        r.awardedAt = uint64(block.timestamp);
-        r.claimDeadline = uint64(block.timestamp + claimExpiry);
+        r.awardedAt = block.timestamp.toUint64();
+        // Uses the claim-expiry frozen into this round at open time, never the live
+        // (owner-mutable) `claimExpiry` — see the `Round.claimExpirySeconds` note.
+        r.claimDeadline = (block.timestamp + r.claimExpirySeconds).toUint64();
 
         emit WinnerSelected(roundId, winner, r.prizeAmount, randomValue);
     }
@@ -312,6 +346,7 @@ contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
             endTime: r.endTime,
             awardedAt: r.awardedAt,
             claimDeadline: r.claimDeadline,
+            claimExpirySeconds: r.claimExpirySeconds,
             prizeAmount: r.prizeAmount,
             totalWeight: r.totalWeight,
             requestId: r.requestId,
@@ -359,8 +394,11 @@ contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
         uint256 id = currentRoundId;
         Round storage r = rounds[id];
         r.state = RoundState.OPEN;
-        r.startTime = uint64(block.timestamp);
-        r.endTime = uint64(block.timestamp + roundDuration);
+        r.startTime = block.timestamp.toUint64();
+        r.endTime = (block.timestamp + roundDuration).toUint64();
+        // Freeze this round's claim-expiry now, at open time — no later than close, as
+        // required — so no subsequent owner action can affect it. See the `Round` struct.
+        r.claimExpirySeconds = claimExpiry.toUint64();
 
         if (pendingRolloverFunds > 0) {
             r.prizeAmount = pendingRolloverFunds;
@@ -368,6 +406,18 @@ contract DemoPrizeEngine is IPrizeEngine, Ownable, ReentrancyGuard {
         }
 
         emit RoundOpened(id, r.startTime, r.endTime, r.prizeAmount);
+    }
+
+    function _validateRoundDuration(uint256 value) private pure {
+        if (value < MIN_ROUND_DURATION || value > MAX_ROUND_DURATION) {
+            revert RoundDurationOutOfBounds(value, MIN_ROUND_DURATION, MAX_ROUND_DURATION);
+        }
+    }
+
+    function _validateClaimExpiry(uint256 value) private pure {
+        if (value < MIN_CLAIM_EXPIRY || value > MAX_CLAIM_EXPIRY) {
+            revert ClaimExpiryOutOfBounds(value, MIN_CLAIM_EXPIRY, MAX_CLAIM_EXPIRY);
+        }
     }
 
     /// @notice Adds `amount` to whichever round is best positioned to award it: the currently
