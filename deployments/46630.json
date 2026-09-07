@@ -1,14 +1,35 @@
 {
   "chainId": 46630,
   "name": "robinhood-chain-testnet",
-  "deployedAt": null,
+  "deployedAt": "2026-09-07T12:00:45.873Z",
   "contracts": {
-    "MockUSDG": { "address": null, "blockNumber": null },
-    "MockJACK": { "address": null, "blockNumber": null },
-    "MockYieldSource": { "address": null, "blockNumber": null },
-    "DemoRandomnessProvider": { "address": null, "blockNumber": null },
-    "YieldJackVault": { "address": null, "blockNumber": null },
-    "DemoPrizeEngine": { "address": null, "blockNumber": null },
-    "SponsorRegistry": { "address": null, "blockNumber": null }
+    "MockUSDG": {
+      "address": "0x0adea73eb64b0eb9e48b86880784ca06df77c665",
+      "blockNumber": 114837938
+    },
+    "MockJACK": {
+      "address": "0xb91364c52ec2d8c40d4aae8891e5c93ea9632de0",
+      "blockNumber": 114837965
+    },
+    "MockYieldSource": {
+      "address": "0x29ec4884f3c1c9301541324ff3cc201b4e698d10",
+      "blockNumber": 114837984
+    },
+    "DemoRandomnessProvider": {
+      "address": "0x2aa855dde4495415961beb8c3a257daffab05f0d",
+      "blockNumber": 114838033
+    },
+    "YieldJackVault": {
+      "address": "0xa3027ce9ad5c2f5005cb728dd2a77061da942f76",
+      "blockNumber": 114838058
+    },
+    "DemoPrizeEngine": {
+      "address": "0xc682c9db096d737d780e337e6e6dc97fc3fb23e2",
+      "blockNumber": 114838084
+    },
+    "SponsorRegistry": {
+      "address": "0xf9ccbb7ca435bb15ab76dff72a45871526aac71a",
+      "blockNumber": 114838112
+    }
   }
 }
