@@ -1,0 +1,14 @@
+{
+  "chainId": 31337,
+  "name": "anvil",
+  "deployedAt": null,
+  "contracts": {
+    "MockUSDG": { "address": null, "blockNumber": null },
+    "MockJACK": { "address": null, "blockNumber": null },
+    "MockYieldSource": { "address": null, "blockNumber": null },
+    "DemoRandomnessProvider": { "address": null, "blockNumber": null },
+    "YieldJackVault": { "address": null, "blockNumber": null },
+    "DemoPrizeEngine": { "address": null, "blockNumber": null },
+    "SponsorRegistry": { "address": null, "blockNumber": null }
+  }
+}
