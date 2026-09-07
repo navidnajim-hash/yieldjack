@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0a0d0c;
+  --color-surface: #121613;
+  --color-surface-hover: #171c19;
+  --color-surface-raised: #1a201c;
+  --color-border: #242b26;
+  --color-border-strong: #333c35;
+  --color-foreground: #f3f4ef;
+  --color-muted: #9aa39c;
+  --color-muted-dim: #6b746e;
+
+  --color-primary: #10b981;
+  --color-primary-hover: #14c98f;
+  --color-primary-dim: #0d7a56;
+
+  --color-gold: #e8b93f;
+  --color-gold-hover: #f2c65a;
+  --color-gold-dim: #a8811f;
+
+  --color-danger: #ef4444;
+  --color-danger-dim: #7f1d1d;
+
+  --font-sans:
+    ui-sans-serif, system-ui, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* ---- Brand motion: subtle glow, prize pulse, number roll ---- */
+
+@keyframes yj-glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 24px 0 rgb(16 185 129 / 12%);
+  }
+  50% {
+    box-shadow: 0 0 40px 6px rgb(16 185 129 / 28%);
+  }
+}
+
+@keyframes yj-prize-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.015);
+  }
+}
+
+@keyframes yj-roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-yj-glow {
+  animation: yj-glow-pulse 3.2s ease-in-out infinite;
+}
+
+.animate-yj-prize-pulse {
+  animation: yj-prize-pulse 2.6s ease-in-out infinite;
+}
+
+.animate-yj-roll {
+  animation: yj-roll-in 0.35s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-yj-glow,
+  .animate-yj-prize-pulse,
+  .animate-yj-roll,
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Focus ring consistent with brand palette, for keyboard accessibility. */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

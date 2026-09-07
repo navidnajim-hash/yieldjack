@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "safety-scan": "node ../../scripts/production-output-safety-scan.mjs"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "2.2.11",

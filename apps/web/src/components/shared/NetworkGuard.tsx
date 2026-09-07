@@ -1,12 +1,13 @@
 "use client";
 
-import { robinhoodChainMainnet, robinhoodChainTestnet } from "@yieldjack/config";
+import { robinhoodChainMainnet } from "@yieldjack/config";
 import type { ReactNode } from "react";
 import { useAccount, useSwitchChain } from "wagmi";
 
 /**
- * Wraps app content that requires a supported chain. Shows a wallet-connect prompt when
- * disconnected, or a one-click network switch when connected to an unsupported chain.
+ * Wraps app content that requires the wallet to be connected to Robinhood Chain mainnet — the
+ * only chain this production app ever sends a transaction to. Shows a connect prompt when
+ * disconnected, or a one-click network switch when connected to any other chain.
  */
 export function NetworkGuard({ children }: { children: ReactNode }) {
   const { isConnected, chain } = useAccount();
@@ -14,43 +15,27 @@ export function NetworkGuard({ children }: { children: ReactNode }) {
 
   if (!isConnected) {
     return (
-      <div className="rounded-xl border border-border bg-surface p-6 text-center">
-        <p className="text-foreground">Connect your wallet to use the YieldJack app.</p>
-        <p className="mt-1 text-sm text-muted">
-          Use the Connect Wallet button in the top navigation.
-        </p>
+      <div className="rounded-xl border border-border bg-surface p-8 text-center">
+        <p className="text-foreground">Connect your wallet to continue.</p>
+        <p className="mt-1 text-sm text-muted">Use the Connect Wallet button in the top navigation.</p>
       </div>
     );
   }
 
-  const supported =
-    chain?.id === robinhoodChainTestnet.id || chain?.id === robinhoodChainMainnet.id || chain?.testnet;
-
-  if (!supported || !chain) {
+  if (chain?.id !== robinhoodChainMainnet.id) {
     return (
-      <div className="rounded-xl border border-gold/40 bg-gold/10 p-6 text-center">
+      <div className="rounded-xl border border-warning/40 bg-warning/10 p-8 text-center">
         <p className="text-foreground">
-          Wrong network{chain ? ` (${chain.name})` : ""}. YieldJack runs on{" "}
-          {robinhoodChainTestnet.name} or {robinhoodChainMainnet.name} (mock-only demo).
+          Wrong network{chain ? ` (${chain.name})` : ""}. YieldJack runs on {robinhoodChainMainnet.name}.
         </p>
-        <div className="mt-3 flex flex-wrap justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => switchChain({ chainId: robinhoodChainTestnet.id })}
-            disabled={isPending}
-            className="rounded-md bg-gold px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-gold-hover disabled:opacity-60"
-          >
-            {isPending ? "Switching…" : `Switch to ${robinhoodChainTestnet.name}`}
-          </button>
-          <button
-            type="button"
-            onClick={() => switchChain({ chainId: robinhoodChainMainnet.id })}
-            disabled={isPending}
-            className="rounded-md border border-gold px-4 py-2 text-sm font-medium text-gold transition-colors hover:bg-gold/10 disabled:opacity-60"
-          >
-            {isPending ? "Switching…" : `Switch to ${robinhoodChainMainnet.name} (mock-only demo)`}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => switchChain({ chainId: robinhoodChainMainnet.id })}
+          disabled={isPending}
+          className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition-colors hover:bg-accent-hover disabled:opacity-60"
+        >
+          {isPending ? "Switching…" : `Switch to ${robinhoodChainMainnet.name}`}
+        </button>
       </div>
     );
   }

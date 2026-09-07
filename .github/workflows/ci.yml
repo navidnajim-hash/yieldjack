@@ -5,8 +5,9 @@ on:
     branches: [main]
   pull_request:
 
-# No secrets are required for this workflow — everything runs against local mocks or a local
-# Foundry EVM. It never touches Robinhood Chain Testnet or any real RPC endpoint.
+# No secrets are required for this workflow — everything runs against local mocks, a local
+# Foundry EVM, or the production app's own committed (all-null, prelaunch) manifest. It never
+# touches Robinhood Chain Testnet/mainnet or any real RPC endpoint, and never deploys anything.
 permissions:
   contents: read
 
@@ -41,8 +42,8 @@ jobs:
         env:
           FOUNDRY_PROFILE: ci
 
-  web:
-    name: Web (lint, typecheck, test, build)
+  demo-web:
+    name: Demo web (lint, typecheck, test, build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -77,13 +78,56 @@ jobs:
         run: node scripts/sync-abis.mjs
 
       - name: Lint
+        run: pnpm --filter @yieldjack/demo-web lint
+
+      - name: Typecheck
+        run: pnpm --filter @yieldjack/config typecheck && pnpm --filter @yieldjack/demo-web typecheck && pnpm --filter @yieldjack/keeper typecheck
+
+      - name: Unit tests
+        run: pnpm --filter @yieldjack/demo-web test
+
+      - name: Static build (testnet/mainnet-demo interface)
+        run: pnpm --filter @yieldjack/demo-web build
+
+  web:
+    name: Web — production (lint, typecheck, test, build, safety scan, e2e)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck shared config
+        run: pnpm --filter @yieldjack/config typecheck
+
+      - name: Lint
         run: pnpm --filter @yieldjack/web lint
 
       - name: Typecheck
-        run: pnpm --filter @yieldjack/config typecheck && pnpm --filter @yieldjack/web typecheck && pnpm --filter @yieldjack/keeper typecheck
+        run: pnpm --filter @yieldjack/web typecheck
 
       - name: Unit tests
         run: pnpm --filter @yieldjack/web test
 
       - name: Production static build
         run: pnpm --filter @yieldjack/web build
+
+      - name: Production build-output safety scan
+        run: node scripts/production-output-safety-scan.mjs
+
+      - name: Install Playwright browsers
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright e2e (desktop + mobile)
+        run: pnpm --filter @yieldjack/web e2e

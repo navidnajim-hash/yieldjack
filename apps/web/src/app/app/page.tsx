@@ -1,42 +1,54 @@
-import { BalanceCards } from "@/components/dashboard/BalanceCards";
-import { ClaimPanel } from "@/components/dashboard/ClaimPanel";
-import { DepositForm } from "@/components/dashboard/DepositForm";
-import { DrawStatusTimeline } from "@/components/dashboard/DrawStatusTimeline";
-import { FaucetPanel } from "@/components/dashboard/FaucetPanel";
-import { SponsorForm } from "@/components/dashboard/SponsorForm";
-import { TestnetControls } from "@/components/dashboard/TestnetControls";
-import { WalletStatusBar } from "@/components/dashboard/WalletStatusBar";
-import { WithdrawForm } from "@/components/dashboard/WithdrawForm";
+import { ClaimPanel } from "@/components/save-and-win/ClaimPanel";
+import { DepositForm } from "@/components/save-and-win/DepositForm";
+import { PositionOverview } from "@/components/save-and-win/PositionOverview";
+import { RecentActivity } from "@/components/save-and-win/RecentActivity";
+import { RoundTimeline } from "@/components/save-and-win/RoundTimeline";
+import { WithdrawForm } from "@/components/save-and-win/WithdrawForm";
 import { NetworkGuard } from "@/components/shared/NetworkGuard";
+import { PageSection, PageShell } from "@/components/shared/PageShell";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { WalletPositionBar } from "@/components/shared/WalletPosition";
+import { prizeSavingsReadiness, productionManifest } from "@/lib/production/resolver";
 
-export default function AppPage() {
+// This page never imports the demo deployment resolver or deployments/4663.json — see
+// docs in src/lib/production/resolver.ts. `productionVault` and `productionPrizeEngine` are
+// null until a real, audited vault and prize engine are deployed, so every transaction control
+// below stays disabled regardless of network or wallet state.
+export const metadata = {
+  title: "Save & Win | YieldJack",
+  description: "Deposit, track your principal, and see your standing in YieldJack's recurring prize draws.",
+};
+
+export default function SaveAndWinPage() {
+  const { configured } = prizeSavingsReadiness;
+  const productionAsset = productionManifest.contracts.productionAsset;
+
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Your YieldJack dashboard</h1>
-        <p className="mt-1 text-sm text-muted">
-          Everything below reads and writes the deployed contracts directly — nothing here is
-          simulated in the frontend.
-        </p>
-      </div>
+    <PageShell>
+      <PageSection className="flex flex-col gap-8">
+        <SectionHeader
+          eyebrow="Save & Win"
+          title="Your position"
+          description="Deposit the production savings asset, track your principal, and see your standing in the current round."
+        />
 
-      <NetworkGuard>
-        <div className="flex flex-col gap-6">
-          <WalletStatusBar />
-          <ClaimPanel />
-          <BalanceCards />
-          <DrawStatusTimeline />
+        <WalletPositionBar />
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <DepositForm />
-            <WithdrawForm />
-            <FaucetPanel />
+        <NetworkGuard>
+          <PositionOverview productionAsset={productionAsset} />
+
+          <div className="grid gap-5 lg:grid-cols-3">
+            <DepositForm configured={configured} />
+            <WithdrawForm configured={configured} />
+            <ClaimPanel configured={configured} />
           </div>
 
-          <SponsorForm />
-          <TestnetControls />
-        </div>
-      </NetworkGuard>
-    </div>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <RoundTimeline />
+            <RecentActivity />
+          </div>
+        </NetworkGuard>
+      </PageSection>
+    </PageShell>
   );
 }

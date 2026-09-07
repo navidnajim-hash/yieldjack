@@ -4,17 +4,34 @@
 
 YieldJack is a prize-savings dApp: users deposit a stablecoin into a vault, the capital
 generates yield, depositors keep their principal, and the yield funds a recurring prize drawn
-from eligible depositors. This repository is a **working testnet MVP** — unaudited, running on
-Robinhood Chain Testnet with worthless mock tokens. It is inspired by the general prize-savings
-model pioneered by PoolTogether, with original branding, an original frontend, and its own
-modular contract implementation (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for why no
-PoolTogether code was reused).
+from eligible depositors. It is inspired by the general prize-savings model pioneered by
+PoolTogether, with original branding, an original frontend, and its own modular contract
+implementation (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for why no PoolTogether code
+was reused).
+
+This repository contains **two separate frontend applications** (see
+[Repository structure](#repository-structure)):
+
+- **`apps/web`** — the **production** interface at [yieldjack.fun](https://yieldjack.fun),
+  deployed from this repo's `main` branch. It never resolves or calls the mock/testnet
+  contracts below, carries no demo/trial/testnet banner, and keeps every transaction control
+  disabled until the real, audited `$JACK` token and YieldJack contracts it needs are deployed
+  and configured in [`deployments/production/4663.json`](deployments/production/4663.json) —
+  which today is entirely `null` (`"status": "prelaunch"`). Real `$JACK` fee-routing/staking
+  contracts (`JackFeeRouter`, `JackStakingRewards` — see
+  [packages/contracts/src/fees](packages/contracts/src/fees) and
+  [packages/contracts/src/staking](packages/contracts/src/staking)) exist and are tested, but
+  have not been deployed anywhere yet, and there is no production savings vault yet either.
+- **`apps/demo-web`** — a **working testnet MVP**: unaudited, running on Robinhood Chain
+  Testnet (and a mock-only mainnet demo) with worthless mock tokens. This is the original demo
+  application this project started as; it always displays its `MainnetDemoBanner` warning and
+  must never be confused with the production interface.
 
 **Read [CLAUDE.md](CLAUDE.md) before making changes** — it records the hard safety rules this
 project is built on (no fabricated addresses, no mainnet deploys, no admin-selected winners,
-withdrawals always available, etc.).
+withdrawals always available, strict separation between the two frontend apps, etc.).
 
-## Product overview
+## Product overview (testnet MVP — `apps/demo-web`)
 
 A round runs for a configured duration. During it, users can deposit and withdraw Mock USDG
 freely — their principal is always theirs. Deposited capital is routed into a yield source;
@@ -40,16 +57,21 @@ is and isn't defended against.
 
 ```
 apps/
-  web/          Next.js frontend (static export)
-  keeper/       optional TypeScript keeper (progresses draws automatically)
+  web/          Production Next.js frontend (static export) — yieldjack.fun, deployed by Vercel
+  demo-web/     Testnet/mainnet-demo Next.js frontend (static export) — the original demo MVP
+  keeper/       optional TypeScript keeper (progresses demo-web's draws automatically)
 packages/
   contracts/    Foundry project — all Solidity source, tests, deploy scripts
-  config/       shared chain definitions, deployment-manifest types, generated ABIs
-deployments/    committed deployment manifests (31337.json = local Anvil, 46630.json = testnet,
-                 4663.json = Robinhood Chain mainnet mock-only demo)
+  config/       shared chain definitions, demo deployment-manifest types, generated ABIs
+deployments/
+  31337.json / 46630.json / 4663.json   demo-web's manifests (local Anvil / testnet /
+                                          Robinhood Chain mainnet mock-only demo)
+  production/4663.json                   apps/web's production manifest — all-null until real
+                                          contracts are deployed (see below)
 docs/           architecture, threat model, accounting invariants, production roadmap
-scripts/        cross-cutting Node scripts (ABI sync, manifest builder, local seed data)
-.github/workflows/  CI (contract tests + frontend build, no secrets required)
+scripts/        cross-cutting Node scripts (ABI sync, manifest builder, local seed data,
+                 production build-output safety scan)
+.github/workflows/  CI (contract tests + both frontend apps' build/test/e2e, no secrets required)
 ```
 
 ## Prerequisites
@@ -76,9 +98,10 @@ pnpm install
 pnpm contracts:build
 ```
 
-## Local demo
+## Local demo (`apps/demo-web`)
 
-This runs the entire system locally against Anvil, with no external RPC and no real funds.
+This runs the entire testnet-MVP system locally against Anvil, with no external RPC and no real
+funds.
 
 ```bash
 # Terminal 1
@@ -87,7 +110,7 @@ pnpm demo:node        # starts a local Anvil node on :8545
 # Terminal 2
 pnpm demo:deploy       # deploys + wires all contracts, writes deployments/31337.json
 pnpm demo:seed         # stages a few demo depositors at staggered times + simulated yield
-pnpm dev                # starts the frontend at http://localhost:3000
+pnpm demo-web:dev      # starts the demo frontend at http://localhost:3000
 ```
 
 Open `http://localhost:3000`, connect a wallet pointed at `http://127.0.0.1:8545` (chain id
@@ -158,24 +181,39 @@ forge verify-contract \
 
 Repeat per contract, using the addresses from `deployments/46630.json` after deploying.
 
-## Frontend deployment / static export
+## Production frontend (`apps/web`)
 
-`apps/web` builds to a fully static site (`output: "export"` in `next.config.mjs`) with no server
-routes or middleware, so it can be uploaded to any ordinary static host:
+`apps/web` is the production interface at [yieldjack.fun](https://yieldjack.fun) — this is what
+Vercel builds from `main`. It is visually and structurally complete today, but every transaction
+control (deposit/withdraw/claim on Save & Win; stake/unstake/claim on Stake JACK) stays disabled
+until the contracts it needs are real, deployed, and configured. There is no environment-variable
+override for any of this: contract addresses are public configuration, and
+[`deployments/production/4663.json`](deployments/production/4663.json) is their single committed
+source of truth.
+
+To activate a feature once its contracts are deployed and verified, add the real addresses to
+`deployments/production/4663.json` — never invent or guess one. `apps/web`'s production resolver
+(`apps/web/src/lib/production/`) requires *every* address a feature needs before enabling that
+feature's controls (see CLAUDE.md's "Two frontend applications" section), and additionally
+verifies on-chain bytecode exists at each configured address before allowing a write.
 
 ```bash
-pnpm --filter @yieldjack/web build
-# static output is now in apps/web/out/ — upload it as-is
+pnpm --filter @yieldjack/web dev     # local dev server at http://localhost:3000
+pnpm --filter @yieldjack/web build   # static export to apps/web/out/
+node scripts/production-output-safety-scan.mjs   # fails if any mock/demo trace is in the output
 ```
 
-If your host doesn't automatically resolve `/foo` to `/foo.html`, add `trailingSlash: true` to
-`next.config.mjs` and rebuild.
+Both `apps/web` and `apps/demo-web` build to a fully static site (`output: "export"` in each
+app's `next.config.mjs`) with no server routes or middleware, so either can be uploaded to any
+ordinary static host. If your host doesn't automatically resolve `/foo` to `/foo.html`, add
+`trailingSlash: true` to the relevant `next.config.mjs` and rebuild.
 
 ## Keeper (optional)
 
-Progresses draws automatically by calling the same permissionless functions any user could call
-from the app — see [apps/keeper](apps/keeper). Not required: eligible users can always advance a
-round themselves via the frontend's testnet controls.
+Progresses `apps/demo-web`'s draws automatically by calling the same permissionless functions any
+user could call from that app — see [apps/keeper](apps/keeper). Not required: eligible users can
+always advance a round themselves via the demo frontend's testnet controls. Not applicable to
+`apps/web`, which has no production vault to progress yet.
 
 ```bash
 cd apps/keeper
@@ -188,10 +226,14 @@ pnpm start
 | File | Variable | Purpose |
 | --- | --- | --- |
 | `apps/web/.env.example` | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Optional; falls back to injected-wallet-only connectors if unset |
+| `apps/demo-web/.env.example` | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Same, for the demo app |
 | `apps/keeper/.env.example` | `KEEPER_NETWORK`, `ROBINHOOD_TESTNET_RPC_URL`, `KEEPER_PRIVATE_KEY`, `DRY_RUN`, `POLL_INTERVAL_MS` | See file for details |
 | (shell, not committed) | `DEPLOYER_PRIVATE_KEY` | Read by the Foundry deploy scripts; never hardcoded |
 | (shell, not committed) | `ROBINHOOD_MAINNET_RPC_URL` | Robinhood Chain mainnet RPC; only used by `deploy:mainnet-demo` |
 | (shell, not committed) | `MAINNET_DEMO_ACK` | Must equal `I_UNDERSTAND_THIS_IS_MOCK_ONLY`; required by `DeployMainnetDemo.s.sol` |
+
+Neither frontend app has a backend, a database, or any server-side secret — every address either
+app reads is public configuration committed to this repository.
 
 ## Local commands reference
 
@@ -202,21 +244,26 @@ pnpm contracts:test       # forge test — unit, fuzz, and invariant suites
 pnpm demo:node             # local Anvil node
 pnpm demo:deploy           # deploy + wire contracts, write deployments/31337.json
 pnpm demo:seed              # stage demo participants + simulated yield
-pnpm dev                    # frontend dev server
-pnpm web:lint / web:typecheck / web:test / web:build / web:e2e
+pnpm dev                    # production frontend dev server (apps/web)
+
+pnpm web:lint / web:typecheck / web:test / web:build / web:e2e / web:safety-scan
+pnpm demo-web:dev / demo-web:lint / demo-web:typecheck / demo-web:test / demo-web:build / demo-web:e2e
 ```
 
 ## Known limitations
 
-This is a testnet MVP. See [docs/PRODUCTION_ROADMAP.md](docs/PRODUCTION_ROADMAP.md) for the full,
-itemized list; the headline items:
-
-- `MockUSDG`, `MockJACK`, `MockYieldSource`, and `DemoRandomnessProvider` are all testnet-only
-  mocks with no real-world value or security guarantees.
-- The active-participant set is capped at 256 wallets (`YieldJackVault.MAX_PARTICIPANTS`).
-- Nothing in this repository has been professionally audited.
-- No fees or token buybacks are implemented (deliberately — see the original spec this MVP was
-  built against).
+- **`apps/web` (production):** no contract has been deployed yet — see
+  [`deployments/production/4663.json`](deployments/production/4663.json). `JackFeeRouter` and
+  `JackStakingRewards` exist and are tested in `packages/contracts/src/{fees,staking}`, but are
+  not deployed anywhere; there is no production savings vault or prize engine yet; `$JACK` itself
+  has not launched. Nothing in this repository has been professionally audited.
+- **`apps/demo-web` (testnet MVP):** see [docs/PRODUCTION_ROADMAP.md](docs/PRODUCTION_ROADMAP.md)
+  for the full, itemized list; the headline items:
+  - `MockUSDG`, `MockJACK`, `MockYieldSource`, and `DemoRandomnessProvider` are all testnet-only
+    mocks with no real-world value or security guarantees.
+  - The active-participant set is capped at 256 wallets (`YieldJackVault.MAX_PARTICIPANTS`).
+  - No fees or token buybacks are implemented in the demo (deliberately — see the original spec
+    this MVP was built against).
 
 ## Exact next steps toward production
 

@@ -1,25 +1,42 @@
-import { Hero } from "@/components/landing/Hero";
-import { LiveStats } from "@/components/landing/LiveStats";
-import { RecentWinnerPanel } from "@/components/landing/RecentWinnerPanel";
-import { RiskNotice } from "@/components/landing/RiskNotice";
-import { SponsorExplainer } from "@/components/landing/SponsorExplainer";
-import { ThreeSteps } from "@/components/landing/ThreeSteps";
+import { CreatorRevenueFlow } from "@/components/home/CreatorRevenueFlow";
+import { CurrentRoundPreview } from "@/components/home/CurrentRoundPreview";
+import { FinalCta } from "@/components/home/FinalCta";
+import { Hero } from "@/components/home/Hero";
+import { JackUtilityExplainer } from "@/components/home/JackUtilityExplainer";
+import { RecentDraws } from "@/components/home/RecentDraws";
+import { SaveWinExplainer } from "@/components/home/SaveWinExplainer";
+import { ThreeStepLifecycle } from "@/components/home/ThreeStepLifecycle";
+import { TransparencySection } from "@/components/home/TransparencySection";
+import { PageSection, PageShell } from "@/components/shared/PageShell";
 
 export default function HomePage() {
   return (
-    <div>
+    <PageShell>
       <Hero />
-      <ThreeSteps />
-      <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
-        <LiveStats />
-      </section>
-      <section className="mx-auto grid max-w-6xl grid-cols-1 gap-4 px-4 pb-16 sm:px-6 md:grid-cols-2">
-        <RecentWinnerPanel />
-        <SponsorExplainer />
-      </section>
-      <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
-        <RiskNotice />
-      </section>
-    </div>
+      <PageSection className="border-t border-border">
+        <SaveWinExplainer />
+      </PageSection>
+      <PageSection className="border-t border-border">
+        <JackUtilityExplainer />
+      </PageSection>
+      <PageSection className="border-t border-border">
+        <ThreeStepLifecycle />
+      </PageSection>
+      <PageSection className="border-t border-border">
+        <CreatorRevenueFlow />
+      </PageSection>
+      <PageSection className="border-t border-border">
+        <CurrentRoundPreview />
+      </PageSection>
+      <PageSection className="border-t border-border">
+        <RecentDraws />
+      </PageSection>
+      <PageSection className="border-t border-border">
+        <TransparencySection />
+      </PageSection>
+      <PageSection className="border-t border-border">
+        <FinalCta />
+      </PageSection>
+    </PageShell>
   );
 }

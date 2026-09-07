@@ -5,8 +5,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Static export so the built output can be uploaded to ordinary web hosting — this is a
-  // pure client-side dApp with no server routes or middleware.
+  // Static export so the built output can be uploaded to ordinary web hosting (this is also
+  // what Vercel builds for this app) — a pure client-side dApp with no server routes or
+  // middleware.
   output: "export",
   images: { unoptimized: true },
   reactStrictMode: true,
